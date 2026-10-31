@@ -52,7 +52,9 @@ iobroker add ecoflow-ps-ble
 
 1. **User-ID ermitteln:** Instanz starten, die Einstellungen öffnen und unter *EcoFlow-Konto* E-Mail bzw. Telefonnummer, Passwort
    und Region eintragen, dann **„User-ID abrufen“**. Der Adapter meldet sich einmalig an der EcoFlow-API an und speichert die ID
-   (Datenpunkt `info.userId`); sie muss nicht ins Formularfeld übernommen werden. Die Zugangsdaten werden weder gespeichert noch
+   (Datenpunkt `info.userId`); sie erscheint auch im Feld *EcoFlow User-ID* (danach „Speichern“) und wird bei einem Start ohne
+   eingetragene ID einmalig dorthin übernommen. E-Mail/Telefonnummer, Region und Passwort bleiben nach „Speichern“ in den
+   Instanzeinstellungen erhalten, das Passwort wird verschlüsselt abgelegt (im Formular über das Augen-Symbol sichtbar). Sie werden nicht
    protokolliert und gehen ausschließlich an die EcoFlow-Server. Alternativ lässt sich die User-ID von Hand in das Feld eintragen
    (hat dann Vorrang).
 2. **Bluetooth-Adapter** wählen (nur bei mehreren Adaptern nötig; „Automatisch“ nutzt `hci0`). Die Liste zeigt die vorhandenen Adapter mit MAC-Adresse und Bus.
@@ -109,7 +111,7 @@ Die Tests decken Protokoll, Regel-Logik, Geräteanbindung (simulierter PowerStre
 
 ## Changelog
 
-### 0.1.0
+### 1.0.0
 * Erstveröffentlichung
 
 ## Lizenz

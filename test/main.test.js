@@ -275,3 +275,70 @@ test('Admin-Nachricht listAdapters: Auswahlliste beginnt mit "Automatisch"', asy
         assert.strictEqual(typeof o.value, 'string');
     }
 });
+
+test('User-ID abrufen: leeres Formular -> gespeicherte Zugangsdaten (E-Mail, Passwort, Region) werden verwendet', async () => {
+    withFakePs(new FakePs());
+    FakeAdapter.nextConfig = { ...baseCfg(), userId: '', devices: [], loginEmail: 'me@example.com', loginPassword: 'geheim', loginRegion: 'api-e' };
+    const a = createAdapter();
+    const realFetch = globalThis.fetch;
+    const bodies = [];
+    try {
+        globalThis.fetch = async (url, opts) => {
+            bodies.push({ url, body: JSON.parse(opts.body) });
+            return { ok: true, status: 200, json: async () => ({ code: '0', data: { user: { userId: UID } } }) };
+        };
+        // Admin ersetzt nicht aufgeloeste Platzhalter nicht immer durch '' -> beides muss funktionieren
+        await a.onMessage({ command: 'getUserId', from: 'x', callback: 1, message: { email: '${data.loginEmail}', password: '', region: '' } });
+        assert.match(a.sent.msg.result, new RegExp(`${UID} ermittelt`));
+        assert.match(bodies[0].url, /api-e/);
+        assert.strictEqual(bodies[0].body.email, 'me@example.com');
+    } finally {
+        globalThis.fetch = realFetch;
+    }
+});
+
+test('Start: ermittelte User-ID aus info.userId wird einmalig in die Instanzeinstellungen uebernommen', async () => {
+    const ps = new FakePs();
+    ps.startHeartbeats();
+    withFakePs(ps);
+    FakeAdapter.nextConfig = { ...baseCfg(), userId: '' };
+    const a = createAdapter();
+    const writes = [];
+    a.extendForeignObjectAsync = async (id, obj) => void writes.push({ id, obj });
+    a._put('info.userId', { val: UID, ack: true });
+    await a.onReady();
+    try {
+        assert.deepStrictEqual(writes, [{ id: `system.adapter.${a.namespace}`, obj: { native: { userId: UID } } }]);
+    } finally {
+        await unload(a);
+        ps.stop();
+    }
+    // Ist die ID schon eingetragen, wird nichts geschrieben
+    const ps2 = new FakePs();
+    ps2.startHeartbeats();
+    withFakePs(ps2);
+    FakeAdapter.nextConfig = baseCfg();
+    const b = createAdapter();
+    const writes2 = [];
+    b.extendForeignObjectAsync = async (id, obj) => void writes2.push({ id, obj });
+    await b.onReady();
+    try {
+        assert.strictEqual(writes2.length, 0);
+    } finally {
+        await unload(b);
+        ps2.stop();
+    }
+});
+
+test('Admin-Konfiguration: Zugangsdaten sind gespeicherte Felder, Passwort verschluesselt und sichtbar schaltbar', () => {
+    const items = require('../admin/jsonConfig.json').items;
+    const pkg = require('../io-package.json');
+    for (const k of ['loginEmail', 'loginPassword', 'loginRegion', 'userId']) {
+        assert.ok(items[k], `Feld ${k} fehlt`);
+        assert.ok(!k.startsWith('_'), 'Felder mit Unterstrich werden nicht gespeichert');
+        assert.ok(k in pkg.native, `native.${k} fehlt`);
+    }
+    assert.strictEqual(items.loginPassword.type, 'password');
+    assert.strictEqual(items.loginPassword.visible, true);
+    assert.deepStrictEqual(pkg.common.encryptedNative, ['loginPassword']);
+});

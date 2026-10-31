@@ -83,6 +83,25 @@ class EcoflowPsBle extends utils.Adapter {
         }
         this._ecoUserId = userId;
         await this._ecoStartDevices();
+        await this._ecoSyncUserIdToConfig(manual, userId);
+    }
+
+    /**
+     * Eine per "User-ID abrufen" ermittelte ID einmalig in die Instanzeinstellungen uebernehmen,
+     * damit sie dort angezeigt wird (loest einmalig einen Neustart der Instanz aus).
+     *
+     * @param {string} manual aktuell eingetragene User-ID
+     * @param {string} userId verwendete User-ID
+     */
+    async _ecoSyncUserIdToConfig(manual, userId) {
+        if (manual || !userId || typeof this.extendForeignObjectAsync !== 'function') {
+            return;
+        }
+        try {
+            await this.extendForeignObjectAsync(`system.adapter.${this.namespace}`, { native: { userId } });
+        } catch (e) {
+            this.log.debug(`User-ID konnte nicht in die Einstellungen uebernommen werden: ${e.message}`);
+        }
     }
 
     /** (Neu-)Aufbau der Geraete mit der aktuellen User-ID */
@@ -343,7 +362,14 @@ class EcoflowPsBle extends utils.Adapter {
         const m = obj.message || {};
         let response;
         try {
-            const userId = await fetchUserId({ identifier: m.email, password: m.password, region: m.region });
+            // Felder aus dem (ungespeicherten) Formular; sind sie leer, gelten die gespeicherten Zugangsdaten
+            const cfg = this.config || {};
+            const clean = v => (typeof v === 'string' && /\$\{[^}]*\}/.test(v) ? '' : v);
+            const userId = await fetchUserId({
+                identifier: clean(m.email) || cfg.loginEmail,
+                password: clean(m.password) || cfg.loginPassword,
+                region: clean(m.region) || cfg.loginRegion || 'auto',
+            });
             this.log.info('EcoFlow User-ID erfolgreich ermittelt');
             // Dauerhaft im Adapter speichern - unabhaengig davon, ob das Formularfeld im Admin aktualisiert wird
             await this.setStateAsync('info.userId', { val: userId, ack: true });

@@ -86,7 +86,7 @@ test('HTTP-/Netzfehler', async () => {
 
 test('Unaufgeloeste Admin-Platzhalter werden erkannt', async () => {
     const f = mockFetch(() => okReply('1'));
-    await assert.rejects(() => fetchUserId({ identifier: '${data._loginEmail}', password: '${data._loginPassword}' }, f), /nicht übergeben/);
+    await assert.rejects(() => fetchUserId({ identifier: '${data.loginEmail}', password: '${data.loginPassword}' }, f), /nicht übergeben/);
     assert.strictEqual(f.calls.length, 0);
 });
 
@@ -96,8 +96,8 @@ test('Admin-Konfiguration: Button nutzt jsonData mit allen drei Feldern und ergi
     assert.strictEqual(cfg.command, 'getUserId');
     assert.strictEqual(cfg.data, undefined, 'data wird vom Admin nicht ausgewertet');
     const filled = cfg.jsonData
-        .replace('${data._loginEmail}', 'me@example.com')
-        .replace('${data._loginPassword}', 'geheim')
-        .replace('${data._loginRegion}', 'auto');
+        .replace('${data.loginEmail}', 'me@example.com')
+        .replace('${data.loginPassword}', 'geheim')
+        .replace('${data.loginRegion}', 'auto');
     assert.deepStrictEqual(JSON.parse(filled), { email: 'me@example.com', password: 'geheim', region: 'auto' });
 });

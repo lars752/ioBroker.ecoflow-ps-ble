@@ -10,24 +10,25 @@
     },
     "accountHelp": {
       "type": "staticText",
-      "text": "Die User-ID wird für die Anmeldung am PowerStream benötigt. Mit „User-ID abrufen“ meldet sich der Adapter einmalig an der EcoFlow-API an und speichert die ID im Adapter (Datenpunkt info.userId); die Geräte starten danach automatisch. Die Zugangsdaten werden nicht gespeichert und gehen nur an die EcoFlow-Server. Dafür muss die Instanz laufen. Passwörter mit Anführungszeichen oder Backslash können hier nicht verwendet werden – die User-ID dann bitte von Hand eintragen.",
+      "text": "Die User-ID wird für die Anmeldung am PowerStream benötigt. Mit „User-ID abrufen“ meldet sich der Adapter einmalig an der EcoFlow-API an und speichert die ID im Adapter (Datenpunkt info.userId); die Geräte starten danach automatisch. E-Mail/Telefonnummer, Region und Passwort werden mit „Speichern“ in den Instanzeinstellungen abgelegt (das Passwort verschlüsselt) und gehen nur an die EcoFlow-Server. Dafür muss die Instanz laufen. Passwörter mit Anführungszeichen oder Backslash können hier nicht für „User-ID abrufen“ verwendet werden – die User-ID dann bitte von Hand eintragen.",
       "newLine": true,
       "xs": 12
     },
-    "_loginEmail": {
+    "loginEmail": {
       "type": "text",
       "label": "E-Mail oder Telefonnummer",
       "newLine": true,
       "xs": 12,
       "md": 4
     },
-    "_loginPassword": {
+    "loginPassword": {
       "type": "password",
+      "visible": true,
       "label": "Passwort",
       "xs": 12,
       "md": 3
     },
-    "_loginRegion": {
+    "loginRegion": {
       "type": "select",
       "label": "Region",
       "default": "auto",
@@ -72,12 +73,12 @@
       "newLine": true,
       "xs": 12,
       "md": 3,
-      "jsonData": "{\"email\":\"${data._loginEmail}\",\"password\":\"${data._loginPassword}\",\"region\":\"${data._loginRegion}\"}"
+      "jsonData": "{\"email\":\"${data.loginEmail}\",\"password\":\"${data.loginPassword}\",\"region\":\"${data.loginRegion}\"}"
     },
     "userId": {
       "type": "text",
-      "label": "EcoFlow User-ID (optional)",
-      "help": "Nur nötig, wenn die ID von Hand eingetragen werden soll; sie hat dann Vorrang vor der per „User-ID abrufen“ gespeicherten. Zusammen mit der Seriennummer bildet sie den BLE-Anmeldeschlüssel – wie ein Passwort behandeln.",
+      "label": "EcoFlow User-ID",
+      "help": "Wird durch „User-ID abrufen“ eingetragen (danach „Speichern“) und kann auch von Hand gesetzt werden; ein eingetragener Wert hat Vorrang vor dem Datenpunkt info.userId. Zusammen mit der Seriennummer bildet sie den BLE-Anmeldeschlüssel – wie ein Passwort behandeln.",
       "newLine": true,
       "xs": 12,
       "md": 6

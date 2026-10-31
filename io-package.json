@@ -1,9 +1,9 @@
 {
   "common": {
     "name": "ecoflow-ps-ble",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "news": {
-      "0.1.0": {
+      "1.0.0": {
         "en": "initial release",
         "de": "Erstveröffentlichung"
       }
@@ -53,10 +53,19 @@
         "admin": ">=6.0.0"
       }
     ],
-    "messagebox": true
+    "messagebox": true,
+    "encryptedNative": [
+      "loginPassword"
+    ],
+    "protectedNative": [
+      "loginPassword"
+    ]
   },
   "native": {
     "userId": "",
+    "loginEmail": "",
+    "loginPassword": "",
+    "loginRegion": "auto",
     "devices": [
       {
         "enabled": true,
