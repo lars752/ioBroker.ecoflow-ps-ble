@@ -21,7 +21,7 @@ class FakePs {
         this.chunk = chunk; // >0: Notifications in Stuecke dieser Groesse zerlegen
         this.perm = 0; // W
         this.out = 120; // W
-        this.bright = 1023;
+        this.bright = 1000;
         this.supply = 0;
         this.writes = []; // {cmdId, value}
         this.connections = 0;

@@ -72,11 +72,11 @@ Alle Datenpunkte liegen unter `ecoflow-ps-ble.<Instanz>.<Geräte-ID>.…`.
 
 | Bereich | Datenpunkt | Beschreibung |
 |---|---|---|
-| `control` | `setWatts` (W, schreibbar) | Einspeise-Sollwert; wird begrenzt und kaufmännisch auf 5 W gerundet, der verwendete Wert kommt mit `ack=true` zurück |
-| | `brightness` (%, schreibbar) | LED-Helligkeit 0–100 % |
-| | `supplyMode` (0/1, schreibbar) | 0 = Prioritize power supply, 1 = Prioritize power storage |
-| | `reconnect` (Button) | BLE-Verbindung trennen und neu aufbauen |
-| `inverter_heartbeat` | 59 Messwerte (3 davon optional) | Namen wie im Adapter ioBroker.ecoflow-mqtt: `pv1InputVolt`, `pv1InputWatts`, `batSoc`, `batInputWatts` (± = Fluss zur/von der Batterie), `invOutputWatts`, `permanentWatts`, `lowerLimit`, `upperLimit`, `batChargingTime`, Status-/Fehlercodes … |
+| `control` | `reconnect` (Button) | BLE-Verbindung trennen und neu aufbauen |
+| `inverter_heartbeat` | 59 Werte (3 davon optional) | Namen und Skalierung wie im Adapter ioBroker.ecoflow-mqtt: `pv1InputVolt`, `pv1InputWatts`, `batSoc`, `batInputWatts` (± = Fluss zur/von der Batterie), `invOutputWatts`, `lowerLimit`, `upperLimit`, `batChargingTime`, Status-/Fehlercodes … |
+| | `permanentWatts` (W, **schreibbar**) | Einspeise-Sollwert; wird begrenzt und kaufmännisch auf 5 W gerundet, der verwendete Wert kommt mit `ack=true` zurück, danach zeigt der Datenpunkt den vom Gerät gemeldeten Ist-Wert |
+| | `invBrightness` (%, **schreibbar**) | LED-Helligkeit 0–100 % (Faktor 0,1 wie ecoflow-mqtt, Rohwert 0–1000) |
+| | `supplyPriority` (Schalter, **schreibbar**) | aus = Prioritize power supply (Einspeisung), an = Prioritize power storage (Laden) |
 | `info` | `link` | BLE verbunden **und** angemeldet |
 | | `status`, `lastDisconnect`, `bleReconnects`, `bleRssi`, `lastUpdate` | Verbindungsdiagnose |
 | (Instanz) | `info.connection` | Mindestens ein Gerät verbunden |
@@ -112,6 +112,7 @@ Die Tests decken Protokoll, Regel-Logik, Geräteanbindung (simulierter PowerStre
 ## Changelog
 
 ### 1.0.0
+* Steuerwerte liegen wie bei ioBroker.ecoflow-mqtt im `inverter_heartbeat`: `permanentWatts` (früher `control.setWatts`), `invBrightness` (früher `control.brightness`), `supplyPriority` (früher `control.supplyMode`, jetzt Schalter). Die alten Datenpunkte werden beim Start entfernt, `control.reconnect` bleibt.
 * Messwerte liegen unter `inverter_heartbeat` (statt `telemetry`) und tragen die Namen des Adapters ioBroker.ecoflow-mqtt. Das alte Channel `telemetry` wird beim Start entfernt.
 * Erstveröffentlichung
 

@@ -96,11 +96,15 @@ test('Start: Objekte, Verbindung, Telemetrie, Sollwert ueber State, Ack, info.co
     await a.onReady();
     try {
         // Objekte
-        for (const id of ['PS1', 'PS1.control.setWatts', 'PS1.control.brightness', 'PS1.control.supplyMode', 'PS1.control.reconnect', 'PS1.inverter_heartbeat.batSoc', 'PS1.inverter_heartbeat.permanentWatts', 'PS1.info.link']) {
+        for (const id of ['PS1', 'PS1.control.reconnect', 'PS1.inverter_heartbeat.batSoc', 'PS1.inverter_heartbeat.permanentWatts', 'PS1.inverter_heartbeat.invBrightness', 'PS1.inverter_heartbeat.supplyPriority', 'PS1.info.link']) {
             assert.ok(a.objects.has(`${a.namespace}.${id}`), `Objekt ${id} fehlt`);
         }
         assert.ok(!a.objects.has(`${a.namespace}.PS1.inverter_heartbeat.invTemp`), 'versteckte Sensoren nur auf Wunsch');
-        assert.strictEqual(a.objects.get(`${a.namespace}.PS1.control.setWatts`).common.max, 800);
+        assert.strictEqual(a.objects.get(`${a.namespace}.PS1.inverter_heartbeat.permanentWatts`).common.max, 800);
+        assert.strictEqual(a.objects.get(`${a.namespace}.PS1.inverter_heartbeat.permanentWatts`).common.write, true);
+        for (const old of ['setWatts', 'brightness', 'supplyMode']) {
+            assert.ok(!a.objects.has(`${a.namespace}.PS1.control.${old}`), `alter Steuer-Datenpunkt control.${old} entfaellt`);
+        }
         assert.strictEqual(a.objects.get(`${a.namespace}.PS1`).native.mac, 'aa:bb:cc:dd:ee:ff');
 
         await waitFor(() => a.val('info.connection') === true);
@@ -110,22 +114,22 @@ test('Start: Objekte, Verbindung, Telemetrie, Sollwert ueber State, Ack, info.co
         assert.strictEqual(a.ack('PS1.inverter_heartbeat.batSoc'), true);
 
         // Sollwert setzen (ack=false vom Nutzer) -> wird gerundet, bestaetigt und ans Geraet geschrieben
-        await a.onStateChange(`${a.namespace}.PS1.control.setWatts`, { val: 203, ack: false });
-        await waitFor(() => a.val('PS1.control.setWatts') === 205);
-        assert.strictEqual(a.ack('PS1.control.setWatts'), true);
+        await a.onStateChange(`${a.namespace}.PS1.inverter_heartbeat.permanentWatts`, { val: 203, ack: false });
+        await waitFor(() => a.val('PS1.inverter_heartbeat.permanentWatts') === 205);
+        assert.strictEqual(a.ack('PS1.inverter_heartbeat.permanentWatts'), true);
         await waitFor(() => ps.writes.some(w => w.cmdId === 0x81 && w.value === 2050));
 
         // Ack-Aenderungen werden ignoriert, fremde States ebenfalls
         const n = ps.writes.length;
-        await a.onStateChange(`${a.namespace}.PS1.control.setWatts`, { val: 400, ack: true });
+        await a.onStateChange(`${a.namespace}.PS1.inverter_heartbeat.permanentWatts`, { val: 400, ack: true });
         await a.onStateChange(`${a.namespace}.PS1.inverter_heartbeat.batSoc`, { val: 1, ack: false });
-        await a.onStateChange(`${a.namespace}.PS9.control.setWatts`, { val: 400, ack: false });
+        await a.onStateChange(`${a.namespace}.PS9.inverter_heartbeat.permanentWatts`, { val: 400, ack: false });
         await sleep(100);
         assert.strictEqual(ps.writes.length, n);
 
         // Helligkeit / Supply
-        await a.onStateChange(`${a.namespace}.PS1.control.brightness`, { val: 30, ack: false });
-        await a.onStateChange(`${a.namespace}.PS1.control.supplyMode`, { val: 1, ack: false });
+        await a.onStateChange(`${a.namespace}.PS1.inverter_heartbeat.invBrightness`, { val: 30, ack: false });
+        await a.onStateChange(`${a.namespace}.PS1.inverter_heartbeat.supplyPriority`, { val: true, ack: false });
         await waitFor(() => ps.writes.some(w => w.cmdId === 0x87) && ps.writes.some(w => w.cmdId === 0x82));
 
         // Button "reconnect"

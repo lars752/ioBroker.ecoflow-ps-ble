@@ -125,7 +125,7 @@ class EcoflowPsBle extends utils.Adapter {
                 options: this._ecoOptions,
                 log: this.log,
             });
-            dev.on('update', (id, val) => void this._ecoOnDeviceUpdate(d.id, id, val));
+            dev.on('update', (id, val, force) => void this._ecoOnDeviceUpdate(d.id, id, val, force));
             this.devices.set(d.id, dev);
         }
         await this._ecoInitBleAndStart();
@@ -209,34 +209,6 @@ class EcoflowPsBle extends utils.Adapter {
         }
 
         // --- Steuerung ---
-        await this._ecoState(`${base}.control.setWatts`, {
-            name: 'Einspeise-Sollwert',
-            type: 'number',
-            role: 'level',
-            unit: 'W',
-            min: options.minWatts,
-            max: options.maxWatts,
-            step: 5,
-            write: true,
-        });
-        await this._ecoState(`${base}.control.brightness`, {
-            name: 'Inverter Helligkeit',
-            type: 'number',
-            role: 'level.dimmer',
-            unit: '%',
-            min: 0,
-            max: 100,
-            write: true,
-        });
-        await this._ecoState(`${base}.control.supplyMode`, {
-            name: 'Power Supply Mode',
-            type: 'number',
-            role: 'level',
-            min: 0,
-            max: 1,
-            states: { 0: 'Prioritize power supply', 1: 'Prioritize power storage' },
-            write: true,
-        });
         await this._ecoState(`${base}.control.reconnect`, {
             name: 'BLE-Verbindung neu aufbauen',
             type: 'boolean',
@@ -259,9 +231,26 @@ class EcoflowPsBle extends utils.Adapter {
             if (s.unit) {
                 common.unit = s.unit;
             }
+            if (s.writable) {
+                // Schreibbare Werte liegen wie bei ioBroker.ecoflow-mqtt direkt im inverter_heartbeat
+                common.write = true;
+                if (s.key === 'permanentWatts') {
+                    Object.assign(common, { min: options.minWatts, max: options.maxWatts, step: 5 });
+                } else if (s.key === 'invBrightness') {
+                    Object.assign(common, { min: 0, max: 100, step: 0.1 });
+                }
+            }
             await this._ecoState(`${base}.${HB_CHANNEL}.${s.key}`, common);
         }
 
+        // Fruehere Steuer-Datenpunkte (jetzt in inverter_heartbeat) entfernen
+        for (const old of ['setWatts', 'brightness', 'supplyMode']) {
+            try {
+                await this.delObjectAsync(`${base}.control.${old}`);
+            } catch {
+                /* existiert nicht */
+            }
+        }
         // Aelteres Channel "telemetry" (bis zur Umbenennung in inverter_heartbeat) entfernen
         try {
             await this.delObjectAsync(`${base}.telemetry`, { recursive: true });
@@ -286,13 +275,13 @@ class EcoflowPsBle extends utils.Adapter {
     }
 
     // ---------------------------------------------------------------- Geraet -> States
-    async _ecoOnDeviceUpdate(devId, id, val) {
+    async _ecoOnDeviceUpdate(devId, id, val, force = false) {
         if (this._ecoUnloaded) {
             return;
         }
         const full = `${devId}.${id}`;
         try {
-            if (id.startsWith('control.')) {
+            if (force || id.startsWith('control.')) {
                 await this.setStateAsync(full, { val, ack: true });
             } else {
                 await this.setStateChangedAsync(full, { val, ack: true });
@@ -312,7 +301,7 @@ class EcoflowPsBle extends utils.Adapter {
             return;
         }
         const parts = id.slice(this.namespace.length + 1).split('.');
-        if (parts.length !== 3 || parts[1] !== 'control') {
+        if (parts.length !== 3 || (parts[1] !== 'control' && parts[1] !== HB_CHANNEL)) {
             return;
         }
         const dev = this.devices.get(parts[0]);
@@ -321,22 +310,20 @@ class EcoflowPsBle extends utils.Adapter {
         }
         const val = Number(state.val);
         switch (parts[2]) {
-            case 'setWatts':
+            case 'permanentWatts':
                 if (Number.isFinite(val)) {
                     dev.setTarget(val);
                 } else {
                     this.log.warn(`[${parts[0]}] ungueltiger Sollwert: ${state.val}`);
                 }
                 break;
-            case 'brightness':
+            case 'invBrightness':
                 if (Number.isFinite(val)) {
                     dev.setBrightness(val);
                 }
                 break;
-            case 'supplyMode':
-                if (Number.isFinite(val)) {
-                    dev.setSupplyMode(val);
-                }
+            case 'supplyPriority':
+                dev.setSupplyMode(state.val === true || state.val === 'true' || val === 1);
                 break;
             case 'reconnect':
                 if (state.val === true || state.val === 'true' || val === 1) {

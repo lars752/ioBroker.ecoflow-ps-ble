@@ -38,8 +38,8 @@ test('Verbindung, Auth, Telemetrie und write-on-change', async () => {
         assert.strictEqual(updates['inverter_heartbeat.invInputVolt'], 230.12);
         assert.strictEqual(updates['inverter_heartbeat.invOnOff'], true);
         assert.strictEqual(updates['inverter_heartbeat.permanentWatts'], 0);
-        assert.strictEqual(updates['control.brightness'], 100);
-        assert.strictEqual(updates['control.supplyMode'], 0);
+        assert.strictEqual(updates['inverter_heartbeat.invBrightness'], 100);
+        assert.strictEqual(updates['inverter_heartbeat.supplyPriority'], false);
         assert.strictEqual(updates['info.bleRssi'], -61);
         assert.ok(updates['info.lastUpdate'] > 0);
 
@@ -59,7 +59,7 @@ test('Verbindung, Auth, Telemetrie und write-on-change', async () => {
         dev.setSupplyMode(1);
         await waitFor(() => ps.writes.length >= 3);
         assert.deepStrictEqual(ps.writes.slice(1), [
-            { cmdId: 0x87, value: 512 },
+            { cmdId: 0x87, value: 500 },
             { cmdId: 0x82, value: 1 },
         ]);
     } finally {
@@ -86,7 +86,7 @@ test('Reconnect nach Funkabbruch: Helligkeit/Supply werden erneut gesetzt, Sollw
         await waitFor(() => ps.writes.length > before);
         await sleep(300);
         const after = ps.writes.slice(before);
-        assert.deepStrictEqual(after, [{ cmdId: 0x87, value: Math.round(0.4 * 1023) }]);
+        assert.deepStrictEqual(after, [{ cmdId: 0x87, value: 400 }]);
         assert.strictEqual(updates['info.bleReconnects'], 2);
     } finally {
         await dev.stop();
