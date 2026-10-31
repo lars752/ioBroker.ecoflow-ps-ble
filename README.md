@@ -34,6 +34,7 @@ sudo apt-get install bluetooth bluez libbluetooth-dev libudev-dev build-essentia
 sudo setcap cap_net_raw+eip $(eval readlink -f $(which node))
 ```
 
+* Fehlt die Berechtigung (`cap_net_raw`) oder ein Bluetooth-Adapter, meldet der Adapter das im Log und versucht es alle 30 s erneut; die Instanz läuft weiter (u. a. für „User-ID abrufen“).
 * In **VM, Proxmox/LXC und Docker** muss der Bluetooth-Adapter an den Gast durchgereicht werden (USB-Passthrough; bei Docker u. a. `NET_ADMIN`/`NET_RAW`).
 * Belegt ein laufender `bluetoothd` den Adapter, helfen ggf. `sudo systemctl stop bluetooth` bzw. `hciconfig hci0 up`.
 * macOS stellt Anwendungen keine MAC-Adressen bereit; die Suche per MAC funktioniert dort nicht.
