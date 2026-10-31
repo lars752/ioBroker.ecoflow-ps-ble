@@ -10,7 +10,7 @@
     },
     "accountHelp": {
       "type": "staticText",
-      "text": "Die User-ID wird für die Anmeldung am PowerStream benötigt. Mit „User-ID abrufen“ meldet sich der Adapter einmalig an der EcoFlow-API an und trägt die ID unten ein. Die Zugangsdaten werden nicht gespeichert und gehen nur an die EcoFlow-Server. Dafür muss die Instanz laufen.",
+      "text": "Die User-ID wird für die Anmeldung am PowerStream benötigt. Mit „User-ID abrufen“ meldet sich der Adapter einmalig an der EcoFlow-API an und trägt die ID unten ein. Die Zugangsdaten werden nicht gespeichert und gehen nur an die EcoFlow-Server. Dafür muss die Instanz laufen. Passwörter mit Anführungszeichen oder Backslash können hier nicht verwendet werden – die User-ID dann bitte von Hand eintragen.",
       "newLine": true,
       "xs": 12
     },
@@ -72,11 +72,7 @@
       "newLine": true,
       "xs": 12,
       "md": 3,
-      "data": {
-        "email": "${data._loginEmail}",
-        "password": "${data._loginPassword}",
-        "region": "${data._loginRegion}"
-      }
+      "jsonData": "{\"email\":\"${data._loginEmail}\",\"password\":\"${data._loginPassword}\",\"region\":\"${data._loginRegion}\"}"
     },
     "userId": {
       "type": "text",
