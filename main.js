@@ -21,6 +21,9 @@ class EcoflowPsBle extends utils.Adapter {
         this.ble = null;
         this._initTimer = null;
         this._unloaded = false;
+        this._defs = [];
+        this._options = null;
+        this._userId = '';
         this.on('ready', this.onReady.bind(this));
         this.on('stateChange', this.onStateChange.bind(this));
         this.on('message', this.onMessage.bind(this));
@@ -30,21 +33,20 @@ class EcoflowPsBle extends utils.Adapter {
     // ---------------------------------------------------------------- Start
     async onReady() {
         await this.setStateAsync('info.connection', false, true);
+        await this._state('info.userId', {
+            name: 'Ermittelte EcoFlow User-ID',
+            type: 'string',
+            role: 'text',
+        });
         const cfg = this.config;
 
-        const userId = String(cfg.userId || '').trim();
-        if (!userId) {
-            this.log.error('Keine EcoFlow User-ID konfiguriert. In den Instanz-Einstellungen unter "EcoFlow-Konto" die User-ID abrufen oder eintragen.');
-            return;
-        }
-
-        const defs = this._validateDevices(cfg.devices);
-        if (!defs.length) {
+        this._defs = this._validateDevices(cfg.devices);
+        if (!this._defs.length) {
             this.log.error('Kein gueltiges, aktives Geraet konfiguriert (Geraete-ID, Seriennummer, BLE-MAC).');
             return;
         }
 
-        const options = {
+        this._options = {
             minWatts: num(cfg.minWatts, 0),
             maxWatts: num(cfg.maxWatts, 800),
             startWatts: num(cfg.startWatts, 0),
@@ -54,28 +56,54 @@ class EcoflowPsBle extends utils.Adapter {
             retryMs: Math.max(2, num(cfg.retryS, 8)) * 1000,
             allSensors: !!cfg.allSensors,
         };
-        if (options.maxWatts < options.minWatts) {
+        if (this._options.maxWatts < this._options.minWatts) {
             this.log.warn('Maximalleistung < Minimalleistung - verwende 0..800 W');
-            options.minWatts = 0;
-            options.maxWatts = 800;
+            this._options.minWatts = 0;
+            this._options.maxWatts = 800;
         }
 
         this.ble = new BleManager();
-        for (const d of defs) {
-            await this._createObjects(d, options);
+        for (const d of this._defs) {
+            await this._createObjects(d, this._options);
+        }
+        this.subscribeStates('*.control.*');
+
+        // Eine im Feld eingetragene User-ID hat Vorrang; sonst die per "User-ID abrufen" gespeicherte
+        const manual = String(cfg.userId || '').trim();
+        const stored = manual ? null : await this.getStateAsync('info.userId');
+        const userId = manual || (stored && stored.val ? String(stored.val) : '');
+        if (!userId) {
+            this.log.warn('Noch keine EcoFlow User-ID vorhanden. In den Instanz-Einstellungen unter "EcoFlow-Konto" "User-ID abrufen" ausfuehren oder die ID eintragen.');
+            return;
+        }
+        this._userId = userId;
+        await this._startDevices();
+    }
+
+    /** (Neu-)Aufbau der Geraete mit der aktuellen User-ID */
+    async _startDevices() {
+        if (this._unloaded) {
+            return;
+        }
+        if (this._initTimer) {
+            clearTimeout(this._initTimer);
+            this._initTimer = null;
+        }
+        await Promise.all([...this.devices.values()].map(d => d.stop()));
+        this.devices.clear();
+        for (const d of this._defs) {
             const dev = new PowerStreamDevice({
                 id: d.id,
                 sn: d.sn,
                 mac: d.mac,
-                userId,
+                userId: this._userId,
                 ble: this.ble,
-                options,
+                options: this._options,
                 log: this.log,
             });
             dev.on('update', (id, val) => void this._onDeviceUpdate(d.id, id, val));
             this.devices.set(d.id, dev);
         }
-        this.subscribeStates('*.control.*');
         await this._initBleAndStart();
     }
 
@@ -299,7 +327,21 @@ class EcoflowPsBle extends utils.Adapter {
         try {
             const userId = await fetchUserId({ identifier: m.email, password: m.password, region: m.region });
             this.log.info('EcoFlow User-ID erfolgreich ermittelt');
-            response = { result: `User-ID: ${userId}`, native: { userId } };
+            // Dauerhaft im Adapter speichern - unabhaengig davon, ob das Formularfeld im Admin aktualisiert wird
+            await this.setStateAsync('info.userId', { val: userId, ack: true });
+            let text = `User-ID ${userId} ermittelt und gespeichert.`;
+            const manual = String((this.config && this.config.userId) || '').trim();
+            if (manual && manual !== userId) {
+                text += ' Achtung: Die im Feld eingetragene, abweichende User-ID hat nach einem Neustart Vorrang.';
+            }
+            response = { result: text, native: { userId } };
+            if (userId !== this._userId) {
+                this._userId = userId;
+                if (this._defs && this._defs.length) {
+                    // erst antworten, dann (neu) starten
+                    setTimeout(() => void this._startDevices().catch(e => this.log.warn(`Start fehlgeschlagen: ${e.message}`)), 0);
+                }
+            }
         } catch (e) {
             if (!(e instanceof LoginError)) {
                 this.log.warn(`User-ID-Abfrage fehlgeschlagen: ${e.message}`);

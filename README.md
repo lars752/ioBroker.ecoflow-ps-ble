@@ -49,10 +49,11 @@ iobroker add ecoflow-ps-ble
 
 ## Einrichtung
 
-1. **User-ID ermitteln:** Instanz einmal starten, die Einstellungen öffnen und unter *EcoFlow-Konto* E-Mail bzw. Telefonnummer, Passwort
-   und Region eintragen, dann **„User-ID abrufen“**. Der Adapter meldet sich einmalig an der EcoFlow-API an und trägt die ID ein.
-   Die Zugangsdaten werden weder gespeichert noch protokolliert und gehen ausschließlich an die EcoFlow-Server.
-   Alternativ lässt sich die User-ID auch von Hand eintragen.
+1. **User-ID ermitteln:** Instanz starten, die Einstellungen öffnen und unter *EcoFlow-Konto* E-Mail bzw. Telefonnummer, Passwort
+   und Region eintragen, dann **„User-ID abrufen“**. Der Adapter meldet sich einmalig an der EcoFlow-API an und speichert die ID
+   (Datenpunkt `info.userId`); sie muss nicht ins Formularfeld übernommen werden. Die Zugangsdaten werden weder gespeichert noch
+   protokolliert und gehen ausschließlich an die EcoFlow-Server. Alternativ lässt sich die User-ID von Hand in das Feld eintragen
+   (hat dann Vorrang).
 2. **Geräte eintragen:** Pro PowerStream eine Zeile mit frei wählbarer Geräte-ID (z. B. `PS1`), Seriennummer (exakt wie auf dem Gerät) und BLE-MAC.
 3. **Sollwert-Grenzen** prüfen (HW51: 0–800 W) und den Startwert festlegen. Startwert **-1** bedeutet: nach dem Adapterstart nichts schreiben,
    bis erstmals ein Sollwert gesetzt wird.

@@ -36,6 +36,9 @@ class FakeAdapter extends EventEmitter {
         this._put(id, st);
     }
     subscribeStates() {}
+    async getStateAsync(id) {
+        return this.states.get(`${this.namespace}.${id}`) || null;
+    }
     sendTo(to, cmd, msg, cb) {
         this.sent = { to, cmd, msg, cb };
     }
@@ -182,7 +185,7 @@ test('Bluetooth nicht verfuegbar: Fehler wird gemeldet, Adapter laeuft weiter (R
 test('Admin-Nachricht getUserId: liefert User-ID, Fehler werden gemeldet, Passwort wird nicht geloggt', async () => {
     const ps = new FakePs();
     withFakePs(ps);
-    FakeAdapter.nextConfig = baseCfg();
+    FakeAdapter.nextConfig = { ...baseCfg(), userId: '' };
     const a = createAdapter();
     const realFetch = globalThis.fetch;
     try {
@@ -198,7 +201,7 @@ test('Admin-Nachricht getUserId: liefert User-ID, Fehler werden gemeldet, Passwo
             };
         };
         await a.onMessage({ command: 'getUserId', from: 'system.adapter.admin.0', callback: 1, message: { email: 'me@example.com', password: 'geheim', region: 'api-e' } });
-        assert.deepStrictEqual(a.sent.msg, { result: 'User-ID: 99887766', native: { userId: '99887766' } });
+        assert.deepStrictEqual(a.sent.msg, { result: 'User-ID 99887766 ermittelt und gespeichert.', native: { userId: '99887766' } });
         await a.onMessage({ command: 'getUserId', from: 'x', callback: 2, message: { email: 'me@example.com', password: 'falsch', region: 'api-e' } });
         assert.deepStrictEqual(a.sent.msg, { error: 'Password is incorrect' });
         await a.onMessage({ command: 'getUserId', from: 'x', callback: 3, message: { email: '', password: '' } });
@@ -208,5 +211,47 @@ test('Admin-Nachricht getUserId: liefert User-ID, Fehler werden gemeldet, Passwo
         assert.ok(!a.logs.join('\n').includes('geheim') && !a.logs.join('\n').includes('falsch'));
     } finally {
         globalThis.fetch = realFetch;
+    }
+});
+
+test('Gespeicherte User-ID (info.userId) genuegt, wenn das Feld leer ist', async () => {
+    const ps = new FakePs();
+    ps.startHeartbeats();
+    withFakePs(ps);
+    FakeAdapter.nextConfig = { ...baseCfg(), userId: '' };
+    const a = createAdapter();
+    a._put('info.userId', { val: UID, ack: true });
+    await a.onReady();
+    try {
+        await waitFor(() => a.val('PS1.info.link') === true, 6000);
+        assert.strictEqual(a.devices.size, 1);
+    } finally {
+        await unload(a);
+        ps.stop();
+    }
+});
+
+test('User-ID abrufen nach dem Start: wird gespeichert und die Geraete starten ohne Neustart', async () => {
+    const ps = new FakePs();
+    ps.startHeartbeats();
+    withFakePs(ps);
+    FakeAdapter.nextConfig = { ...baseCfg(), userId: '' };
+    const a = createAdapter();
+    await a.onReady();
+    assert.strictEqual(a.devices.size, 0, 'ohne User-ID kein Start');
+    assert.match(a.logs.join('\n'), /warn: Noch keine EcoFlow User-ID/);
+    const realFetch = globalThis.fetch;
+    try {
+        globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => ({ code: '0', data: { user: { userId: UID } } }) });
+        await a.onMessage({ command: 'getUserId', from: 'x', callback: 1, message: { email: 'me@example.com', password: 'geheim', region: 'api-e' } });
+        assert.match(a.sent.msg.result, new RegExp(`${UID} ermittelt und gespeichert`));
+        assert.deepStrictEqual(a.sent.msg.native, { userId: UID });
+        assert.strictEqual(a.val('info.userId'), UID);
+        await waitFor(() => a.val('PS1.info.link') === true, 6000);
+        assert.strictEqual(a.devices.size, 1);
+    } finally {
+        globalThis.fetch = realFetch;
+        await unload(a);
+        ps.stop();
     }
 });
