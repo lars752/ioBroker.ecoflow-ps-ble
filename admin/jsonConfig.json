@@ -82,6 +82,23 @@
       "xs": 12,
       "md": 6
     },
+    "bluetoothHeader": {
+      "type": "header",
+      "text": "Bluetooth",
+      "size": 3,
+      "newLine": true
+    },
+    "hciDevice": {
+      "type": "selectSendTo",
+      "command": "listAdapters",
+      "jsonData": "{}",
+      "label": "Bluetooth-Adapter",
+      "default": "",
+      "newLine": true,
+      "xs": 12,
+      "md": 6,
+      "help": "Nur nötig, wenn mehrere Bluetooth-Adapter vorhanden sind. „Automatisch“ verwendet den Standardadapter (hci0). Die Liste wird bei laufender Instanz geladen."
+    },
     "devicesHeader": {
       "type": "header",
       "text": "PowerStream-Geräte",

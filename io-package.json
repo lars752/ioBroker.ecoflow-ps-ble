@@ -72,7 +72,8 @@
     "writeGraceS": 6,
     "telemetryS": 3,
     "retryS": 8,
-    "allSensors": false
+    "allSensors": false,
+    "hciDevice": ""
   },
   "objects": [],
   "instanceObjects": [

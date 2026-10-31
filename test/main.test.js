@@ -255,3 +255,23 @@ test('User-ID abrufen nach dem Start: wird gespeichert und die Geraete starten o
         ps.stop();
     }
 });
+
+test('Eigene Instanzvariablen und Methoden tragen das Praefix _eco (Namenskollisionen mit der Adapter-Basisklasse vermeiden)', () => {
+    const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'main.js'), 'utf8');
+    const names = new Set([...src.matchAll(/this\.(_[A-Za-z]+)\b/g)].map(m => m[1]));
+    for (const n of names) {
+        assert.ok(n.startsWith('_eco'), `Eigenschaft ${n} koennte eine interne Eigenschaft der Basisklasse ueberschreiben`);
+    }
+    assert.ok(names.size > 0);
+});
+
+test('Admin-Nachricht listAdapters: Auswahlliste beginnt mit "Automatisch"', async () => {
+    FakeAdapter.nextConfig = baseCfg();
+    const a = createAdapter();
+    await a.onMessage({ command: 'listAdapters', from: 'x', callback: 9, message: {} });
+    assert.ok(Array.isArray(a.sent.msg));
+    assert.deepStrictEqual(a.sent.msg[0], { value: '', label: 'Automatisch (Standardadapter)' });
+    for (const o of a.sent.msg) {
+        assert.strictEqual(typeof o.value, 'string');
+    }
+});

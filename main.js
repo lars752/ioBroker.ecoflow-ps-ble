@@ -4,7 +4,7 @@
  * Lokale, cloudfreie Anbindung des EcoFlow PowerStream (HW51) per Bluetooth LE.
  */
 const utils = require('@iobroker/adapter-core');
-const { BleManager } = require('./lib/ble');
+const { BleManager, listAdapters } = require('./lib/ble');
 const { PowerStreamDevice } = require('./lib/device');
 const { SENSORS } = require('./lib/sensors');
 const { fetchUserId, LoginError } = require('./lib/login');
@@ -19,11 +19,11 @@ class EcoflowPsBle extends utils.Adapter {
         /** @type {Map<string, PowerStreamDevice>} */
         this.devices = new Map();
         this.ble = null;
-        this._initTimer = null;
-        this._unloaded = false;
-        this._defs = [];
-        this._options = null;
-        this._userId = '';
+        this._ecoInitTimer = null;
+        this._ecoUnloaded = false;
+        this._ecoDefs = [];
+        this._ecoOptions = null;
+        this._ecoUserId = '';
         this.on('ready', this.onReady.bind(this));
         this.on('stateChange', this.onStateChange.bind(this));
         this.on('message', this.onMessage.bind(this));
@@ -33,20 +33,20 @@ class EcoflowPsBle extends utils.Adapter {
     // ---------------------------------------------------------------- Start
     async onReady() {
         await this.setStateAsync('info.connection', false, true);
-        await this._state('info.userId', {
+        await this._ecoState('info.userId', {
             name: 'Ermittelte EcoFlow User-ID',
             type: 'string',
             role: 'text',
         });
         const cfg = this.config;
 
-        this._defs = this._validateDevices(cfg.devices);
-        if (!this._defs.length) {
+        this._ecoDefs = this._ecoValidateDevices(cfg.devices);
+        if (!this._ecoDefs.length) {
             this.log.error('Kein gueltiges, aktives Geraet konfiguriert (Geraete-ID, Seriennummer, BLE-MAC).');
             return;
         }
 
-        this._options = {
+        this._ecoOptions = {
             minWatts: num(cfg.minWatts, 0),
             maxWatts: num(cfg.maxWatts, 800),
             startWatts: num(cfg.startWatts, 0),
@@ -56,15 +56,20 @@ class EcoflowPsBle extends utils.Adapter {
             retryMs: Math.max(2, num(cfg.retryS, 8)) * 1000,
             allSensors: !!cfg.allSensors,
         };
-        if (this._options.maxWatts < this._options.minWatts) {
+        if (this._ecoOptions.maxWatts < this._ecoOptions.minWatts) {
             this.log.warn('Maximalleistung < Minimalleistung - verwende 0..800 W');
-            this._options.minWatts = 0;
-            this._options.maxWatts = 800;
+            this._ecoOptions.minWatts = 0;
+            this._ecoOptions.maxWatts = 800;
         }
 
-        this.ble = new BleManager();
-        for (const d of this._defs) {
-            await this._createObjects(d, this._options);
+        const hci = String(cfg.hciDevice === undefined || cfg.hciDevice === null ? '' : cfg.hciDevice).trim();
+        const hciDevice = /^\d+$/.test(hci) ? Number(hci) : null;
+        if (hciDevice !== null) {
+            this.log.info(`Verwende Bluetooth-Adapter hci${hciDevice}`);
+        }
+        this.ble = new BleManager({ hciDevice });
+        for (const d of this._ecoDefs) {
+            await this._ecoCreateObjects(d, this._ecoOptions);
         }
         this.subscribeStates('*.control.*');
 
@@ -76,47 +81,47 @@ class EcoflowPsBle extends utils.Adapter {
             this.log.warn('Noch keine EcoFlow User-ID vorhanden. In den Instanz-Einstellungen unter "EcoFlow-Konto" "User-ID abrufen" ausfuehren oder die ID eintragen.');
             return;
         }
-        this._userId = userId;
-        await this._startDevices();
+        this._ecoUserId = userId;
+        await this._ecoStartDevices();
     }
 
     /** (Neu-)Aufbau der Geraete mit der aktuellen User-ID */
-    async _startDevices() {
-        if (this._unloaded) {
+    async _ecoStartDevices() {
+        if (this._ecoUnloaded) {
             return;
         }
-        if (this._initTimer) {
-            clearTimeout(this._initTimer);
-            this._initTimer = null;
+        if (this._ecoInitTimer) {
+            clearTimeout(this._ecoInitTimer);
+            this._ecoInitTimer = null;
         }
         await Promise.all([...this.devices.values()].map(d => d.stop()));
         this.devices.clear();
-        for (const d of this._defs) {
+        for (const d of this._ecoDefs) {
             const dev = new PowerStreamDevice({
                 id: d.id,
                 sn: d.sn,
                 mac: d.mac,
-                userId: this._userId,
+                userId: this._ecoUserId,
                 ble: this.ble,
-                options: this._options,
+                options: this._ecoOptions,
                 log: this.log,
             });
-            dev.on('update', (id, val) => void this._onDeviceUpdate(d.id, id, val));
+            dev.on('update', (id, val) => void this._ecoOnDeviceUpdate(d.id, id, val));
             this.devices.set(d.id, dev);
         }
-        await this._initBleAndStart();
+        await this._ecoInitBleAndStart();
     }
 
     /** Bluetooth bereit machen; bei Fehlern regelmaessig neu versuchen (Dongle evtl. spaeter da) */
-    async _initBleAndStart(attempt = 0) {
-        if (this._unloaded) {
+    async _ecoInitBleAndStart(attempt = 0) {
+        if (this._ecoUnloaded) {
             return;
         }
         try {
             await this.ble.init();
         } catch (e) {
             (attempt === 0 ? this.log.error : this.log.debug).call(this.log, `Bluetooth nicht verfuegbar: ${e.message} (neuer Versuch in 30 s)`);
-            this._initTimer = setTimeout(() => void this._initBleAndStart(attempt + 1), 30000);
+            this._ecoInitTimer = setTimeout(() => void this._ecoInitBleAndStart(attempt + 1), 30000);
             return;
         }
         this.log.info(`Bluetooth bereit - starte ${this.devices.size} Geraet(e)`);
@@ -125,7 +130,7 @@ class EcoflowPsBle extends utils.Adapter {
         }
     }
 
-    _validateDevices(list) {
+    _ecoValidateDevices(list) {
         const out = [];
         const seen = new Set();
         for (const raw of Array.isArray(list) ? list : []) {
@@ -161,7 +166,7 @@ class EcoflowPsBle extends utils.Adapter {
     }
 
     // ---------------------------------------------------------------- Objekte
-    async _state(id, common) {
+    async _ecoState(id, common) {
         await this.extendObjectAsync(id, {
             type: 'state',
             common: { read: true, write: false, ...common },
@@ -169,7 +174,7 @@ class EcoflowPsBle extends utils.Adapter {
         });
     }
 
-    async _createObjects(d, options) {
+    async _ecoCreateObjects(d, options) {
         const base = d.id;
         await this.extendObjectAsync(base, {
             type: 'device',
@@ -185,7 +190,7 @@ class EcoflowPsBle extends utils.Adapter {
         }
 
         // --- Steuerung ---
-        await this._state(`${base}.control.setWatts`, {
+        await this._ecoState(`${base}.control.setWatts`, {
             name: 'Einspeise-Sollwert',
             type: 'number',
             role: 'level',
@@ -195,7 +200,7 @@ class EcoflowPsBle extends utils.Adapter {
             step: 5,
             write: true,
         });
-        await this._state(`${base}.control.brightness`, {
+        await this._ecoState(`${base}.control.brightness`, {
             name: 'Inverter Helligkeit',
             type: 'number',
             role: 'level.dimmer',
@@ -204,7 +209,7 @@ class EcoflowPsBle extends utils.Adapter {
             max: 100,
             write: true,
         });
-        await this._state(`${base}.control.supplyMode`, {
+        await this._ecoState(`${base}.control.supplyMode`, {
             name: 'Power Supply Mode',
             type: 'number',
             role: 'level',
@@ -213,7 +218,7 @@ class EcoflowPsBle extends utils.Adapter {
             states: { 0: 'Prioritize power supply', 1: 'Prioritize power storage' },
             write: true,
         });
-        await this._state(`${base}.control.reconnect`, {
+        await this._ecoState(`${base}.control.reconnect`, {
             name: 'BLE-Verbindung neu aufbauen',
             type: 'boolean',
             role: 'button',
@@ -235,21 +240,21 @@ class EcoflowPsBle extends utils.Adapter {
             if (s.unit) {
                 common.unit = s.unit;
             }
-            await this._state(`${base}.telemetry.${s.key}`, common);
+            await this._ecoState(`${base}.telemetry.${s.key}`, common);
         }
 
         // --- Diagnose ---
-        await this._state(`${base}.info.link`, { name: 'BLE verbunden und angemeldet', type: 'boolean', role: 'indicator.reachable' });
-        await this._state(`${base}.info.status`, { name: 'Verbindungsstatus', type: 'string', role: 'text' });
-        await this._state(`${base}.info.bleRssi`, { name: 'BLE RSSI', type: 'number', role: 'value.rssi', unit: 'dBm' });
-        await this._state(`${base}.info.bleReconnects`, { name: 'BLE Verbindungen seit Start', type: 'number', role: 'value' });
-        await this._state(`${base}.info.lastDisconnect`, { name: 'Letzter Trennungsgrund', type: 'string', role: 'text' });
-        await this._state(`${base}.info.lastUpdate`, { name: 'Letzte Messwert-Aktualisierung', type: 'number', role: 'value.time' });
+        await this._ecoState(`${base}.info.link`, { name: 'BLE verbunden und angemeldet', type: 'boolean', role: 'indicator.reachable' });
+        await this._ecoState(`${base}.info.status`, { name: 'Verbindungsstatus', type: 'string', role: 'text' });
+        await this._ecoState(`${base}.info.bleRssi`, { name: 'BLE RSSI', type: 'number', role: 'value.rssi', unit: 'dBm' });
+        await this._ecoState(`${base}.info.bleReconnects`, { name: 'BLE Verbindungen seit Start', type: 'number', role: 'value' });
+        await this._ecoState(`${base}.info.lastDisconnect`, { name: 'Letzter Trennungsgrund', type: 'string', role: 'text' });
+        await this._ecoState(`${base}.info.lastUpdate`, { name: 'Letzte Messwert-Aktualisierung', type: 'number', role: 'value.time' });
     }
 
     // ---------------------------------------------------------------- Geraet -> States
-    async _onDeviceUpdate(devId, id, val) {
-        if (this._unloaded) {
+    async _ecoOnDeviceUpdate(devId, id, val) {
+        if (this._ecoUnloaded) {
             return;
         }
         const full = `${devId}.${id}`;
@@ -319,6 +324,19 @@ class EcoflowPsBle extends utils.Adapter {
      * @param {ioBroker.Message} obj
      */
     async onMessage(obj) {
+        if (obj && obj.command === 'listAdapters') {
+            // Auswahlliste fuer die Einstellung "Bluetooth-Adapter"
+            const adapters = await listAdapters();
+            const options = [{ value: '', label: 'Automatisch (Standardadapter)' }];
+            for (const a of adapters) {
+                const extra = [a.address, a.bus].filter(Boolean).join(', ');
+                options.push({ value: String(a.id), label: extra ? `${a.name} (${extra})` : a.name });
+            }
+            if (obj.callback) {
+                this.sendTo(obj.from, obj.command, options, obj.callback);
+            }
+            return;
+        }
         if (!obj || obj.command !== 'getUserId') {
             return;
         }
@@ -335,11 +353,11 @@ class EcoflowPsBle extends utils.Adapter {
                 text += ' Achtung: Die im Feld eingetragene, abweichende User-ID hat nach einem Neustart Vorrang.';
             }
             response = { result: text, native: { userId } };
-            if (userId !== this._userId) {
-                this._userId = userId;
-                if (this._defs && this._defs.length) {
+            if (userId !== this._ecoUserId) {
+                this._ecoUserId = userId;
+                if (this._ecoDefs && this._ecoDefs.length) {
                     // erst antworten, dann (neu) starten
-                    setTimeout(() => void this._startDevices().catch(e => this.log.warn(`Start fehlgeschlagen: ${e.message}`)), 0);
+                    setTimeout(() => void this._ecoStartDevices().catch(e => this.log.warn(`Start fehlgeschlagen: ${e.message}`)), 0);
                 }
             }
         } catch (e) {
@@ -355,10 +373,10 @@ class EcoflowPsBle extends utils.Adapter {
 
     // ---------------------------------------------------------------- Ende
     async onUnload(callback) {
-        this._unloaded = true;
+        this._ecoUnloaded = true;
         try {
-            if (this._initTimer) {
-                clearTimeout(this._initTimer);
+            if (this._ecoInitTimer) {
+                clearTimeout(this._ecoInitTimer);
             }
             await Promise.all([...this.devices.values()].map(d => d.stop()));
             if (this.ble) {

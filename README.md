@@ -55,10 +55,11 @@ iobroker add ecoflow-ps-ble
    (Datenpunkt `info.userId`); sie muss nicht ins Formularfeld übernommen werden. Die Zugangsdaten werden weder gespeichert noch
    protokolliert und gehen ausschließlich an die EcoFlow-Server. Alternativ lässt sich die User-ID von Hand in das Feld eintragen
    (hat dann Vorrang).
-2. **Geräte eintragen:** Pro PowerStream eine Zeile mit frei wählbarer Geräte-ID (z. B. `PS1`), Seriennummer (exakt wie auf dem Gerät) und BLE-MAC.
-3. **Sollwert-Grenzen** prüfen (HW51: 0–800 W) und den Startwert festlegen. Startwert **-1** bedeutet: nach dem Adapterstart nichts schreiben,
+2. **Bluetooth-Adapter** wählen (nur bei mehreren Adaptern nötig; „Automatisch“ nutzt `hci0`). Die Liste zeigt die vorhandenen Adapter mit MAC-Adresse und Bus.
+3. **Geräte eintragen:** Pro PowerStream eine Zeile mit frei wählbarer Geräte-ID (z. B. `PS1`), Seriennummer (exakt wie auf dem Gerät) und BLE-MAC.
+4. **Sollwert-Grenzen** prüfen (HW51: 0–800 W) und den Startwert festlegen. Startwert **-1** bedeutet: nach dem Adapterstart nichts schreiben,
    bis erstmals ein Sollwert gesetzt wird.
-4. Instanz speichern und neu starten.
+5. Instanz speichern und neu starten.
 
 Weitere Einstellungen: Soll/Ist-Toleranz (5 W), Karenz zwischen Nachschreibversuchen (6 s), Messwert-Intervall (3 s), Pause zwischen
 Verbindungsversuchen (8 s) sowie das Anlegen selten genutzter Sensoren (Inverter-Temperatur, Installationsland/-ort).
