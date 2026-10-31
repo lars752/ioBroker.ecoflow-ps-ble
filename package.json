@@ -1,0 +1,44 @@
+{
+  "name": "iobroker.ecoflow-ps-ble",
+  "version": "0.1.0",
+  "description": "Lokale, cloudfreie Anbindung des EcoFlow PowerStream (HW51) per Bluetooth LE",
+  "author": {
+    "name": "lars752"
+  },
+  "homepage": "https://github.com/lars752/ioBroker.ecoflow-ps-ble",
+  "license": "SEE LICENSE IN LICENSE",
+  "keywords": [
+    "ioBroker",
+    "EcoFlow",
+    "PowerStream",
+    "BLE",
+    "Bluetooth",
+    "Nulleinspeisung"
+  ],
+  "main": "main.js",
+  "files": [
+    "admin/",
+    "lib/",
+    "main.js",
+    "io-package.json",
+    "LICENSE",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@abandonware/noble": "^1.9.2-26",
+    "@iobroker/adapter-core": "^3.2.3"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lars752/ioBroker.ecoflow-ps-ble.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lars752/ioBroker.ecoflow-ps-ble/issues"
+  }
+}

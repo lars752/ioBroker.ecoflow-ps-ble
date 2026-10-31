@@ -1,0 +1,100 @@
+{
+  "common": {
+    "name": "ecoflow-ps-ble",
+    "version": "0.1.0",
+    "news": {
+      "0.1.0": {
+        "en": "initial release (port of the ESP32 BLE bridge, BLE part only)",
+        "de": "Erstveröffentlichung (Portierung der ESP32-BLE-Bridge, nur BLE-Teil)"
+      }
+    },
+    "titleLang": {
+      "en": "EcoFlow PowerStream (BLE)",
+      "de": "EcoFlow PowerStream (BLE)"
+    },
+    "desc": {
+      "en": "Local, cloud-free control and monitoring of the EcoFlow PowerStream (HW51) via Bluetooth LE",
+      "de": "Lokale, cloudfreie Steuerung und Überwachung des EcoFlow PowerStream (HW51) per Bluetooth LE"
+    },
+    "authors": [
+      "lars752"
+    ],
+    "keywords": [
+      "ecoflow",
+      "powerstream",
+      "ble",
+      "bluetooth",
+      "zero feed-in"
+    ],
+    "licenseInformation": {
+      "type": "free",
+      "license": "SEE LICENSE IN LICENSE"
+    },
+    "platform": "Javascript/Node.js",
+    "icon": "ecoflow-ps-ble.svg",
+    "enabled": true,
+    "mode": "daemon",
+    "compact": false,
+    "type": "energy",
+    "connectionType": "local",
+    "dataSource": "push",
+    "adminUI": {
+      "config": "json"
+    },
+    "tier": 2,
+    "loglevel": "info",
+    "dependencies": [
+      {
+        "js-controller": ">=5.0.19"
+      }
+    ],
+    "globalDependencies": [
+      {
+        "admin": ">=6.0.0"
+      }
+    ]
+  },
+  "native": {
+    "userId": "",
+    "devices": [
+      {
+        "enabled": true,
+        "id": "PS1",
+        "sn": "",
+        "mac": ""
+      }
+    ],
+    "minWatts": 0,
+    "maxWatts": 800,
+    "startWatts": 0,
+    "toleranceW": 5,
+    "writeGraceS": 6,
+    "telemetryS": 3,
+    "retryS": 8,
+    "allSensors": false
+  },
+  "objects": [],
+  "instanceObjects": [
+    {
+      "_id": "info",
+      "type": "channel",
+      "common": {
+        "name": "Information"
+      },
+      "native": {}
+    },
+    {
+      "_id": "info.connection",
+      "type": "state",
+      "common": {
+        "role": "indicator.connected",
+        "name": "Mindestens ein PowerStream verbunden",
+        "type": "boolean",
+        "read": true,
+        "write": false,
+        "def": false
+      },
+      "native": {}
+    }
+  ]
+}
