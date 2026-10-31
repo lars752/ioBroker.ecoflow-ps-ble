@@ -2,10 +2,86 @@
   "i18n": false,
   "type": "panel",
   "items": {
+    "accountHeader": {
+      "type": "header",
+      "text": "EcoFlow-Konto",
+      "size": 3,
+      "newLine": true
+    },
+    "accountHelp": {
+      "type": "staticText",
+      "text": "Die User-ID wird für die Anmeldung am PowerStream benötigt. Mit „User-ID abrufen“ meldet sich der Adapter einmalig an der EcoFlow-API an und trägt die ID unten ein. Die Zugangsdaten werden nicht gespeichert und gehen nur an die EcoFlow-Server. Dafür muss die Instanz laufen.",
+      "newLine": true,
+      "xs": 12
+    },
+    "_loginEmail": {
+      "type": "text",
+      "label": "E-Mail oder Telefonnummer",
+      "newLine": true,
+      "xs": 12,
+      "md": 4
+    },
+    "_loginPassword": {
+      "type": "password",
+      "label": "Passwort",
+      "xs": 12,
+      "md": 3
+    },
+    "_loginRegion": {
+      "type": "select",
+      "label": "Region",
+      "default": "auto",
+      "xs": 12,
+      "md": 3,
+      "options": [
+        {
+          "value": "auto",
+          "label": "Automatisch"
+        },
+        {
+          "value": "api",
+          "label": "Global / USA (api)"
+        },
+        {
+          "value": "api-e",
+          "label": "Europa (api-e)"
+        },
+        {
+          "value": "api-a",
+          "label": "Asien / Naher Osten (api-a)"
+        },
+        {
+          "value": "api-j",
+          "label": "Japan (api-j)"
+        },
+        {
+          "value": "api-r",
+          "label": "Russland (api-r)"
+        },
+        {
+          "value": "api-cn",
+          "label": "China (api-cn, nur Telefonnummer)"
+        }
+      ]
+    },
+    "getUserId": {
+      "type": "sendTo",
+      "command": "getUserId",
+      "label": "User-ID abrufen",
+      "variant": "outlined",
+      "newLine": true,
+      "xs": 12,
+      "md": 3,
+      "data": {
+        "email": "${data._loginEmail}",
+        "password": "${data._loginPassword}",
+        "region": "${data._loginRegion}"
+      }
+    },
     "userId": {
       "type": "text",
       "label": "EcoFlow User-ID",
-      "help": "Gleiche ID für alle Geräte desselben Accounts, z. B. über https://gnox.github.io/user_id ermitteln. Zusammen mit der Seriennummer bildet sie den BLE-Anmeldeschlüssel - wie ein Passwort behandeln.",
+      "help": "Gilt für alle Geräte desselben Kontos. Zusammen mit der Seriennummer bildet sie den BLE-Anmeldeschlüssel – wie ein Passwort behandeln.",
       "newLine": true,
       "xs": 12,
       "md": 6
@@ -22,10 +98,34 @@
       "newLine": true,
       "xs": 12,
       "items": [
-        { "type": "checkbox", "attr": "enabled", "title": "Aktiv", "width": "8%", "default": true },
-        { "type": "text", "attr": "id", "title": "Geräte-ID (Buchstaben/Ziffern/_/-)", "width": "22%", "default": "PS1" },
-        { "type": "text", "attr": "sn", "title": "Seriennummer (exakt wie auf dem Gerät)", "width": "35%", "default": "" },
-        { "type": "text", "attr": "mac", "title": "BLE-MAC (aa:bb:cc:dd:ee:ff)", "width": "35%", "default": "" }
+        {
+          "type": "checkbox",
+          "attr": "enabled",
+          "title": "Aktiv",
+          "width": "8%",
+          "default": true
+        },
+        {
+          "type": "text",
+          "attr": "id",
+          "title": "Geräte-ID (Buchstaben/Ziffern/_/-)",
+          "width": "22%",
+          "default": "PS1"
+        },
+        {
+          "type": "text",
+          "attr": "sn",
+          "title": "Seriennummer (exakt wie auf dem Gerät)",
+          "width": "35%",
+          "default": ""
+        },
+        {
+          "type": "text",
+          "attr": "mac",
+          "title": "BLE-MAC (aa:bb:cc:dd:ee:ff)",
+          "width": "35%",
+          "default": ""
+        }
       ]
     },
     "limitsHeader": {
@@ -34,19 +134,73 @@
       "size": 3,
       "newLine": true
     },
-    "minWatts": { "type": "number", "label": "Minimum (W)", "min": 0, "max": 2000, "newLine": true, "xs": 6, "md": 3 },
-    "maxWatts": { "type": "number", "label": "Maximum (W)", "min": 0, "max": 2000, "xs": 6, "md": 3, "help": "EF/PowerStream-Spezifikation beachten (HW51: 800 W)" },
-    "startWatts": { "type": "number", "label": "Startwert (W)", "min": -1, "max": 2000, "xs": 6, "md": 3, "help": "Sollwert nach Adapterstart, bis ein neuer gesetzt wird. -1 = beim Start nichts schreiben" },
+    "minWatts": {
+      "type": "number",
+      "label": "Minimum (W)",
+      "min": 0,
+      "max": 2000,
+      "newLine": true,
+      "xs": 6,
+      "md": 3
+    },
+    "maxWatts": {
+      "type": "number",
+      "label": "Maximum (W)",
+      "min": 0,
+      "max": 2000,
+      "xs": 6,
+      "md": 3,
+      "help": "EF/PowerStream-Spezifikation beachten (HW51: 800 W)"
+    },
+    "startWatts": {
+      "type": "number",
+      "label": "Startwert (W)",
+      "min": -1,
+      "max": 2000,
+      "xs": 6,
+      "md": 3,
+      "help": "Sollwert nach Adapterstart, bis ein neuer gesetzt wird. -1 = beim Start nichts schreiben"
+    },
     "expertHeader": {
       "type": "header",
       "text": "Erweitert",
       "size": 3,
       "newLine": true
     },
-    "toleranceW": { "type": "number", "label": "Soll/Ist-Toleranz (W)", "min": 1, "max": 100, "newLine": true, "xs": 6, "md": 3, "help": "Zugleich Schreib-Totband: erst ab dieser Abweichung wird nachgeschrieben" },
-    "writeGraceS": { "type": "number", "label": "Karenz zwischen Nachschreiben (s)", "min": 1, "max": 120, "xs": 6, "md": 3 },
-    "telemetryS": { "type": "number", "label": "Messwert-Intervall (s)", "min": 1, "max": 60, "xs": 6, "md": 3 },
-    "retryS": { "type": "number", "label": "Pause zwischen Verbindungsversuchen (s)", "min": 2, "max": 300, "xs": 6, "md": 3 },
+    "toleranceW": {
+      "type": "number",
+      "label": "Soll/Ist-Toleranz (W)",
+      "min": 1,
+      "max": 100,
+      "newLine": true,
+      "xs": 6,
+      "md": 3,
+      "help": "Zugleich Schreib-Totband: erst ab dieser Abweichung wird nachgeschrieben"
+    },
+    "writeGraceS": {
+      "type": "number",
+      "label": "Karenz zwischen Nachschreiben (s)",
+      "min": 1,
+      "max": 120,
+      "xs": 6,
+      "md": 3
+    },
+    "telemetryS": {
+      "type": "number",
+      "label": "Messwert-Intervall (s)",
+      "min": 1,
+      "max": 60,
+      "xs": 6,
+      "md": 3
+    },
+    "retryS": {
+      "type": "number",
+      "label": "Pause zwischen Verbindungsversuchen (s)",
+      "min": 2,
+      "max": 300,
+      "xs": 6,
+      "md": 3
+    },
     "allSensors": {
       "type": "checkbox",
       "label": "Auch selten genutzte Sensoren anlegen (Inverter-Temperatur, Installationsland/-ort)",

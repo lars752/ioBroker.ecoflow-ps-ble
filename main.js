@@ -2,15 +2,12 @@
 /*
  * ioBroker.ecoflow-ps-ble
  * Lokale, cloudfreie Anbindung des EcoFlow PowerStream (HW51) per Bluetooth LE.
- *
- * Abgeleitet aus "Local-MQTT-EcoFlow-PowerStream-BLE-Bridge" (c) Just-Zuul 05/2026,
- * nur fuer private, nicht-kommerzielle Nutzung - siehe LICENSE und README.
- * Protokoll-Grundlage: rabits/ha-ef-ble.
  */
 const utils = require('@iobroker/adapter-core');
 const { BleManager } = require('./lib/ble');
 const { PowerStreamDevice } = require('./lib/device');
 const { SENSORS } = require('./lib/sensors');
+const { fetchUserId, LoginError } = require('./lib/login');
 
 const ID_RE = /^[A-Za-z0-9_-]+$/;
 const MAC_RE = /^([0-9a-f]{2}:){5}[0-9a-f]{2}$/;
@@ -26,6 +23,7 @@ class EcoflowPsBle extends utils.Adapter {
         this._unloaded = false;
         this.on('ready', this.onReady.bind(this));
         this.on('stateChange', this.onStateChange.bind(this));
+        this.on('message', this.onMessage.bind(this));
         this.on('unload', this.onUnload.bind(this));
     }
 
@@ -36,7 +34,7 @@ class EcoflowPsBle extends utils.Adapter {
 
         const userId = String(cfg.userId || '').trim();
         if (!userId) {
-            this.log.error('Keine EcoFlow User-ID konfiguriert - Adapter bleibt untaetig.');
+            this.log.error('Keine EcoFlow User-ID konfiguriert. In den Instanz-Einstellungen unter "EcoFlow-Konto" die User-ID abrufen oder eintragen.');
             return;
         }
 
@@ -282,6 +280,34 @@ class EcoflowPsBle extends utils.Adapter {
                 break;
             default:
                 break;
+        }
+    }
+
+    // ---------------------------------------------------------------- Admin-Nachrichten
+    /**
+     * Admin -> Adapter: "getUserId". Meldet sich mit den uebergebenen EcoFlow-Zugangsdaten an
+     * und liefert die User-ID zurueck. Zugangsdaten werden weder gespeichert noch geloggt.
+     *
+     * @param {ioBroker.Message} obj
+     */
+    async onMessage(obj) {
+        if (!obj || obj.command !== 'getUserId') {
+            return;
+        }
+        const m = obj.message || {};
+        let response;
+        try {
+            const userId = await fetchUserId({ identifier: m.email, password: m.password, region: m.region });
+            this.log.info('EcoFlow User-ID erfolgreich ermittelt');
+            response = { result: `User-ID: ${userId}`, native: { userId } };
+        } catch (e) {
+            if (!(e instanceof LoginError)) {
+                this.log.warn(`User-ID-Abfrage fehlgeschlagen: ${e.message}`);
+            }
+            response = { error: e.message };
+        }
+        if (obj.callback) {
+            this.sendTo(obj.from, obj.command, response, obj.callback);
         }
     }
 

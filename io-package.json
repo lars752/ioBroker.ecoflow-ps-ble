@@ -4,8 +4,8 @@
     "version": "0.1.0",
     "news": {
       "0.1.0": {
-        "en": "initial release (port of the ESP32 BLE bridge, BLE part only)",
-        "de": "Erstveröffentlichung (Portierung der ESP32-BLE-Bridge, nur BLE-Teil)"
+        "en": "initial release",
+        "de": "Erstveröffentlichung"
       }
     },
     "titleLang": {
@@ -52,7 +52,8 @@
       {
         "admin": ">=6.0.0"
       }
-    ]
+    ],
+    "messagebox": true
   },
   "native": {
     "userId": "",

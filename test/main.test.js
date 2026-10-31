@@ -36,6 +36,9 @@ class FakeAdapter extends EventEmitter {
         this._put(id, st);
     }
     subscribeStates() {}
+    sendTo(to, cmd, msg, cb) {
+        this.sent = { to, cmd, msg, cb };
+    }
     val(id) {
         const s = this.states.get(`${this.namespace}.${id}`);
         return s && s.val;
@@ -174,4 +177,36 @@ test('Bluetooth nicht verfuegbar: Fehler wird gemeldet, Adapter laeuft weiter (R
     assert.match(a.logs.join('\n'), /Bluetooth nicht verfuegbar: kein Adapter/);
     assert.strictEqual(a.val('info.connection'), false);
     await unload(a); // raeumt den Retry-Timer weg
+});
+
+test('Admin-Nachricht getUserId: liefert User-ID, Fehler werden gemeldet, Passwort wird nicht geloggt', async () => {
+    const ps = new FakePs();
+    withFakePs(ps);
+    FakeAdapter.nextConfig = baseCfg();
+    const a = createAdapter();
+    const realFetch = globalThis.fetch;
+    try {
+        globalThis.fetch = async (url, init) => {
+            const b = JSON.parse(init.body);
+            return {
+                ok: true,
+                status: 200,
+                json: async () =>
+                    b.password === Buffer.from('geheim').toString('base64')
+                        ? { code: '0', data: { user: { userId: '99887766' } } }
+                        : { code: '2026', message: 'Password is incorrect' },
+            };
+        };
+        await a.onMessage({ command: 'getUserId', from: 'system.adapter.admin.0', callback: 1, message: { email: 'me@example.com', password: 'geheim', region: 'api-e' } });
+        assert.deepStrictEqual(a.sent.msg, { result: 'User-ID: 99887766', native: { userId: '99887766' } });
+        await a.onMessage({ command: 'getUserId', from: 'x', callback: 2, message: { email: 'me@example.com', password: 'falsch', region: 'api-e' } });
+        assert.deepStrictEqual(a.sent.msg, { error: 'Password is incorrect' });
+        await a.onMessage({ command: 'getUserId', from: 'x', callback: 3, message: { email: '', password: '' } });
+        assert.match(a.sent.msg.error, /eingeben/);
+        await a.onMessage({ command: 'andere', from: 'x', callback: 4, message: {} });
+        assert.strictEqual(a.sent.cb, 3, 'unbekannte Kommandos werden ignoriert');
+        assert.ok(!a.logs.join('\n').includes('geheim') && !a.logs.join('\n').includes('falsch'));
+    } finally {
+        globalThis.fetch = realFetch;
+    }
 });

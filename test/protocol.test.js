@@ -9,8 +9,8 @@ const { SetpointController, roundTo5 } = require('../lib/controller');
 const SN = 'HW51ZOH4PS000000';
 const UID = '0000000000000000000';
 
-// ---- Testvektoren aus dem Krypto-Selbsttest der Firmware (selfTest()) ----
-test('Firmware-Selbsttest-Vektoren: CRC8 / CRC16 / MD5 / AES', () => {
+// ---- Referenzvektoren ----
+test('Referenzvektoren: CRC8 / CRC16 / MD5 / AES', () => {
     assert.strictEqual(P.crc8(Buffer.from('123456789')), 0xf4);
     assert.strictEqual(P.crc16(Buffer.from('123456789')), 0xbb3d);
     assert.strictEqual(P.md5(Buffer.from('abc')).toString('hex'), '900150983cd24fb0d6963f7d28e17f72');
@@ -192,7 +192,7 @@ function ctl(extra = {}) {
     return { c, tick: ms => (t += ms) };
 }
 
-test('roundTo5 wie Firmware', () => {
+test('roundTo5: kaufmaennisch auf 5 W', () => {
     assert.deepStrictEqual([0, 1, 2, 3, 7, 8, 12, 13, 798].map(roundTo5), [0, 0, 0, 5, 5, 10, 10, 15, 800]);
 });
 
