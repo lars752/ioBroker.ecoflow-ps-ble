@@ -51,7 +51,8 @@ class FakePs {
 
     heartbeat() {
         const pb = Buffer.concat([
-            pbField(48, this.perm * 10),
+            // proto3: Felder mit Wert 0 werden vom echten Geraet weggelassen
+            ...(this.perm ? [pbField(48, this.perm * 10)] : []),
             pbField(38, this.out * 10),
             pbField(31, 87),
             pbField(56, this.bright),
