@@ -29,7 +29,8 @@
   },
   "dependencies": {
     "@abandonware/noble": "^1.9.2-26",
-    "@iobroker/adapter-core": "^3.2.3"
+    "@iobroker/adapter-core": "^3.2.3",
+    "@stoprocent/noble": "^2.0.0"
   },
   "scripts": {
     "test": "node --test test/*.test.js"

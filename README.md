@@ -115,3 +115,7 @@ Die Tests decken Protokoll, Regel-Logik, Geräteanbindung (simulierter PowerStre
 ## Lizenz
 
 Siehe [LICENSE](LICENSE).
+
+## BLE-Bibliothek
+
+Der Adapter laedt bevorzugt `@stoprocent/noble` (gepflegter Fork) und faellt auf `@abandonware/noble` zurueck. Die verwendete Bibliothek steht im Log ("Bluetooth bereit (Bibliothek ...)"). Meldet die Instanz Berechtigungsfehler, ggf. zusaetzlich `sudo setcap cap_net_raw,cap_net_admin+eip $(eval readlink -f $(which node))` ausfuehren und die Instanz neu starten.

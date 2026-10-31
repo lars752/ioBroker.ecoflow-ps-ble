@@ -124,7 +124,7 @@ class EcoflowPsBle extends utils.Adapter {
             this._ecoInitTimer = setTimeout(() => void this._ecoInitBleAndStart(attempt + 1), 30000);
             return;
         }
-        this.log.info(`Bluetooth bereit - starte ${this.devices.size} Geraet(e)`);
+        this.log.info(`Bluetooth bereit (Bibliothek ${this.ble.libName}) - starte ${this.devices.size} Geraet(e)`);
         for (const dev of this.devices.values()) {
             dev.start();
         }
