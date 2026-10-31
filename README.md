@@ -76,7 +76,7 @@ Alle Datenpunkte liegen unter `ecoflow-ps-ble.<Instanz>.<Geräte-ID>.…`.
 | | `brightness` (%, schreibbar) | LED-Helligkeit 0–100 % |
 | | `supplyMode` (0/1, schreibbar) | 0 = Prioritize power supply, 1 = Prioritize power storage |
 | | `reconnect` (Button) | BLE-Verbindung trennen und neu aufbauen |
-| `telemetry` | 47 Messwerte (3 davon optional) | Spannungen, Ströme, Leistungen, Temperaturen, Status-/Fehlercodes, `bat_soc`, `bat_input_watts` (± = Fluss zur/von der Batterie) … |
+| `inverter_heartbeat` | 59 Messwerte (3 davon optional) | Namen wie im Adapter ioBroker.ecoflow-mqtt: `pv1InputVolt`, `pv1InputWatts`, `batSoc`, `batInputWatts` (± = Fluss zur/von der Batterie), `invOutputWatts`, `permanentWatts`, `lowerLimit`, `upperLimit`, `batChargingTime`, Status-/Fehlercodes … |
 | `info` | `link` | BLE verbunden **und** angemeldet |
 | | `status`, `lastDisconnect`, `bleReconnects`, `bleRssi`, `lastUpdate` | Verbindungsdiagnose |
 | (Instanz) | `info.connection` | Mindestens ein Gerät verbunden |
@@ -112,6 +112,7 @@ Die Tests decken Protokoll, Regel-Logik, Geräteanbindung (simulierter PowerStre
 ## Changelog
 
 ### 1.0.0
+* Messwerte liegen unter `inverter_heartbeat` (statt `telemetry`) und tragen die Namen des Adapters ioBroker.ecoflow-mqtt. Das alte Channel `telemetry` wird beim Start entfernt.
 * Erstveröffentlichung
 
 ## Lizenz

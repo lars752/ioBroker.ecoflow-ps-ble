@@ -6,7 +6,7 @@
 const utils = require('@iobroker/adapter-core');
 const { BleManager, listAdapters } = require('./lib/ble');
 const { PowerStreamDevice } = require('./lib/device');
-const { SENSORS } = require('./lib/sensors');
+const { SENSORS, HB_CHANNEL } = require('./lib/sensors');
 const { fetchUserId, LoginError } = require('./lib/login');
 
 const ID_RE = /^[A-Za-z0-9_-]+$/;
@@ -202,7 +202,7 @@ class EcoflowPsBle extends utils.Adapter {
         });
         for (const [ch, name] of [
             ['control', 'Steuerung'],
-            ['telemetry', 'Messwerte'],
+            [HB_CHANNEL, 'Messwerte (inverter_heartbeat)'],
             ['info', 'Verbindung / Diagnose'],
         ]) {
             await this.extendObjectAsync(`${base}.${ch}`, { type: 'channel', common: { name }, native: {} });
@@ -259,10 +259,24 @@ class EcoflowPsBle extends utils.Adapter {
             if (s.unit) {
                 common.unit = s.unit;
             }
-            await this._ecoState(`${base}.telemetry.${s.key}`, common);
+            await this._ecoState(`${base}.${HB_CHANNEL}.${s.key}`, common);
+        }
+
+        // Aelteres Channel "telemetry" (bis zur Umbenennung in inverter_heartbeat) entfernen
+        try {
+            await this.delObjectAsync(`${base}.telemetry`, { recursive: true });
+        } catch {
+            /* existiert nicht */
         }
 
         // --- Diagnose ---
+        if (options.allSensors) {
+            await this._ecoState(`${base}.info.unknownFields`, {
+                name: 'Nicht zugeordnete Heartbeat-Felder (Feldnummer: Rohwert)',
+                type: 'string',
+                role: 'json',
+            });
+        }
         await this._ecoState(`${base}.info.link`, { name: 'BLE verbunden und angemeldet', type: 'boolean', role: 'indicator.reachable' });
         await this._ecoState(`${base}.info.status`, { name: 'Verbindungsstatus', type: 'string', role: 'text' });
         await this._ecoState(`${base}.info.bleRssi`, { name: 'BLE RSSI', type: 'number', role: 'value.rssi', unit: 'dBm' });

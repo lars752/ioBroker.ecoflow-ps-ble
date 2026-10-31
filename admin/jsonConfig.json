@@ -217,7 +217,7 @@
     },
     "allSensors": {
       "type": "checkbox",
-      "label": "Auch selten genutzte Sensoren anlegen (Inverter-Temperatur, Installationsland/-ort)",
+      "label": "Auch selten genutzte Werte anlegen (Inverter-Temperatur, Installationsland/-ort, nicht zugeordnete Heartbeat-Felder)",
       "newLine": true,
       "xs": 12
     }

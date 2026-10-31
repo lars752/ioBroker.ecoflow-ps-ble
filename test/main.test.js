@@ -96,18 +96,18 @@ test('Start: Objekte, Verbindung, Telemetrie, Sollwert ueber State, Ack, info.co
     await a.onReady();
     try {
         // Objekte
-        for (const id of ['PS1', 'PS1.control.setWatts', 'PS1.control.brightness', 'PS1.control.supplyMode', 'PS1.control.reconnect', 'PS1.telemetry.bat_soc', 'PS1.telemetry.permanent_watts', 'PS1.info.link']) {
+        for (const id of ['PS1', 'PS1.control.setWatts', 'PS1.control.brightness', 'PS1.control.supplyMode', 'PS1.control.reconnect', 'PS1.inverter_heartbeat.batSoc', 'PS1.inverter_heartbeat.permanentWatts', 'PS1.info.link']) {
             assert.ok(a.objects.has(`${a.namespace}.${id}`), `Objekt ${id} fehlt`);
         }
-        assert.ok(!a.objects.has(`${a.namespace}.PS1.telemetry.inv_temp`), 'versteckte Sensoren nur auf Wunsch');
+        assert.ok(!a.objects.has(`${a.namespace}.PS1.inverter_heartbeat.invTemp`), 'versteckte Sensoren nur auf Wunsch');
         assert.strictEqual(a.objects.get(`${a.namespace}.PS1.control.setWatts`).common.max, 800);
         assert.strictEqual(a.objects.get(`${a.namespace}.PS1`).native.mac, 'aa:bb:cc:dd:ee:ff');
 
         await waitFor(() => a.val('info.connection') === true);
-        await waitFor(() => a.val('PS1.telemetry.bat_soc') === 87, 5000);
-        assert.strictEqual(a.val('PS1.telemetry.inv_volt_in'), 230.12);
+        await waitFor(() => a.val('PS1.inverter_heartbeat.batSoc') === 87, 5000);
+        assert.strictEqual(a.val('PS1.inverter_heartbeat.invInputVolt'), 230.12);
         assert.strictEqual(a.val('PS1.info.link'), true);
-        assert.strictEqual(a.ack('PS1.telemetry.bat_soc'), true);
+        assert.strictEqual(a.ack('PS1.inverter_heartbeat.batSoc'), true);
 
         // Sollwert setzen (ack=false vom Nutzer) -> wird gerundet, bestaetigt und ans Geraet geschrieben
         await a.onStateChange(`${a.namespace}.PS1.control.setWatts`, { val: 203, ack: false });
@@ -118,7 +118,7 @@ test('Start: Objekte, Verbindung, Telemetrie, Sollwert ueber State, Ack, info.co
         // Ack-Aenderungen werden ignoriert, fremde States ebenfalls
         const n = ps.writes.length;
         await a.onStateChange(`${a.namespace}.PS1.control.setWatts`, { val: 400, ack: true });
-        await a.onStateChange(`${a.namespace}.PS1.telemetry.bat_soc`, { val: 1, ack: false });
+        await a.onStateChange(`${a.namespace}.PS1.inverter_heartbeat.batSoc`, { val: 1, ack: false });
         await a.onStateChange(`${a.namespace}.PS9.control.setWatts`, { val: 400, ack: false });
         await sleep(100);
         assert.strictEqual(ps.writes.length, n);

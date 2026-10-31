@@ -32,12 +32,12 @@ test('Verbindung, Auth, Telemetrie und write-on-change', async () => {
     dev.start();
     try {
         await waitFor(() => updates['info.link'] === true);
-        await waitFor(() => updates['telemetry.bat_soc'] !== undefined);
-        assert.strictEqual(updates['telemetry.bat_soc'], 87);
-        assert.strictEqual(updates['telemetry.inv_output_watts'], 120);
-        assert.strictEqual(updates['telemetry.inv_volt_in'], 230.12);
-        assert.strictEqual(updates['telemetry.inv_onoff'], true);
-        assert.strictEqual(updates['telemetry.permanent_watts'], 0);
+        await waitFor(() => updates['inverter_heartbeat.batSoc'] !== undefined);
+        assert.strictEqual(updates['inverter_heartbeat.batSoc'], 87);
+        assert.strictEqual(updates['inverter_heartbeat.invOutputWatts'], 120);
+        assert.strictEqual(updates['inverter_heartbeat.invInputVolt'], 230.12);
+        assert.strictEqual(updates['inverter_heartbeat.invOnOff'], true);
+        assert.strictEqual(updates['inverter_heartbeat.permanentWatts'], 0);
         assert.strictEqual(updates['control.brightness'], 100);
         assert.strictEqual(updates['control.supplyMode'], 0);
         assert.strictEqual(updates['info.bleRssi'], -61);
@@ -52,7 +52,7 @@ test('Verbindung, Auth, Telemetrie und write-on-change', async () => {
         await waitFor(() => ps.writes.length >= 1);
         await sleep(400);
         assert.deepStrictEqual(ps.writes, [{ cmdId: 0x81, value: 2050 }]);
-        await waitFor(() => updates['telemetry.permanent_watts'] === 205);
+        await waitFor(() => updates['inverter_heartbeat.permanentWatts'] === 205);
 
         // Helligkeit + Supply-Mode
         dev.setBrightness(50);
@@ -115,7 +115,7 @@ test('Selbstheilung: verschluckter Write wird nach Karenz erneut gesendet', asyn
         dev.setTarget(150);
         await waitFor(() => ps.writes.length >= 2, 3000);
         assert.strictEqual(ps.writes[1].value, 1500);
-        await waitFor(() => updates['telemetry.permanent_watts'] === 150);
+        await waitFor(() => updates['inverter_heartbeat.permanentWatts'] === 150);
     } finally {
         await dev.stop();
         ps.stop();
@@ -129,8 +129,8 @@ test('Fragmentierte Notifications (20-Byte-Stuecke) werden zusammengesetzt', asy
     dev.start();
     try {
         await waitFor(() => updates['info.link'] === true);
-        await waitFor(() => updates['telemetry.bat_soc'] === 87);
-        assert.strictEqual(updates['telemetry.inv_volt_in'], 230.12);
+        await waitFor(() => updates['inverter_heartbeat.batSoc'] === 87);
+        assert.strictEqual(updates['inverter_heartbeat.invInputVolt'], 230.12);
     } finally {
         await dev.stop();
         ps.stop();

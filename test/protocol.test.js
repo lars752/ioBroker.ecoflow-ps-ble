@@ -159,15 +159,25 @@ test('Muell wird ignoriert', () => {
 
 test('Skalierung: Inverter input/100, op/10; PV input/10, op/100', () => {
     const by = k => SENSORS.find(x => x.key === k);
-    assert.strictEqual(scaleValue(by('inv_volt_in'), 23012), 230.12);
-    assert.strictEqual(scaleValue(by('inv_volt_op'), 2301), 230.1);
-    assert.strictEqual(scaleValue(by('pv1_volt_in'), 345), 34.5);
-    assert.strictEqual(scaleValue(by('pv1_volt_op'), 3456), 34.56);
-    assert.strictEqual(scaleValue(by('inv_cur_out'), 1234), 1.234);
-    assert.strictEqual(scaleValue(by('bat_soc'), 87), 87);
-    assert.strictEqual(scaleValue(by('bat_input_watts'), -250), -25);
-    assert.strictEqual(scaleValue(by('inv_onoff'), 1), true);
-    assert.strictEqual(scaleValue(by('inv_onoff'), 0), false);
+    assert.strictEqual(scaleValue(by('invInputVolt'), 23012), 230.12);
+    assert.strictEqual(scaleValue(by('invOpVolt'), 2301), 230.1);
+    assert.strictEqual(scaleValue(by('pv1InputVolt'), 345), 34.5);
+    assert.strictEqual(scaleValue(by('pv1OpVolt'), 3456), 34.56);
+    assert.strictEqual(scaleValue(by('invOutputCur'), 1234), 1.234);
+    assert.strictEqual(scaleValue(by('batSoc'), 87), 87);
+    assert.strictEqual(scaleValue(by('batInputWatts'), -250), -25);
+    assert.strictEqual(scaleValue(by('ratedPower'), 800), 800, 'ratedPower: Faktor 1 wie ioBroker.ecoflow-mqtt');
+    assert.strictEqual(scaleValue(by('batInputCur'), 1500), 1.5);
+    assert.strictEqual(scaleValue(by('invOnOff'), 1), true);
+    assert.strictEqual(scaleValue(by('invOnOff'), 0), false);
+});
+
+test('Sensor-Namen entsprechen dem inverter_heartbeat von ioBroker.ecoflow-mqtt', () => {
+    const keys = SENSORS.map(s => s.key);
+    for (const k of ['pv1InputVolt', 'pv2InputWatts', 'batSoc', 'invOutputWatts', 'permanentWatts', 'ratedPower', 'invOnOff', 'batChargingTime', 'batDischargingTime', 'lowerLimit', 'upperLimit', 'dynamicWatts']) {
+        assert.ok(keys.includes(k), `${k} fehlt`);
+    }
+    assert.ok(keys.every(k => /^[a-z][A-Za-z0-9]*$/.test(k)), 'camelCase wie im ecoflow-mqtt-Adapter');
 });
 
 test('Sensor-Tabelle: keine doppelten Keys/Felder', () => {
