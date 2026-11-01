@@ -35,7 +35,9 @@ class FakeAdapter extends EventEmitter {
     async setStateChangedAsync(id, st) {
         this._put(id, st);
     }
-    subscribeStates() {}
+    subscribeStates(pattern) {
+        (this.subscriptions = this.subscriptions || []).push(pattern);
+    }
     async getStateAsync(id) {
         return this.states.get(`${this.namespace}.${id}`) || null;
     }
@@ -101,6 +103,10 @@ test('Start: Objekte, Verbindung, Telemetrie, Sollwert ueber State, Ack, info.co
         }
         assert.ok(!a.objects.has(`${a.namespace}.PS1.inverter_heartbeat.invTemp`), 'versteckte Sensoren nur auf Wunsch');
         assert.strictEqual(a.objects.get(`${a.namespace}.PS1.inverter_heartbeat.permanentWatts`).common.max, 800);
+        // Schreibbare Datenpunkte muessen abonniert sein, sonst kommen Sollwerte nie im Adapter an
+        for (const pat of ['*.control.*', '*.inverter_heartbeat.permanentWatts', '*.inverter_heartbeat.invBrightness', '*.inverter_heartbeat.supplyPriority']) {
+            assert.ok(a.subscriptions.includes(pat), `nicht abonniert: ${pat}`);
+        }
         assert.strictEqual(a.objects.get(`${a.namespace}.PS1.inverter_heartbeat.permanentWatts`).common.write, true);
         for (const old of ['setWatts', 'brightness', 'supplyMode']) {
             assert.ok(!a.objects.has(`${a.namespace}.PS1.control.${old}`), `alter Steuer-Datenpunkt control.${old} entfaellt`);

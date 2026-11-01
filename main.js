@@ -73,6 +73,12 @@ class EcoflowPsBle extends utils.Adapter {
             await this._ecoCreateObjects(d, this._ecoOptions);
         }
         this.subscribeStates('*.control.*');
+        // Schreibbare Werte (permanentWatts, invBrightness, supplyPriority) liegen im inverter_heartbeat
+        for (const s of SENSORS) {
+            if (s.writable) {
+                this.subscribeStates(`*.${HB_CHANNEL}.${s.key}`);
+            }
+        }
 
         // Eine im Feld eingetragene User-ID hat Vorrang; sonst die per "User-ID abrufen" gespeicherte
         const manual = String(cfg.userId || '').trim();
