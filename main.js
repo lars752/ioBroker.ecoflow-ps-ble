@@ -56,7 +56,9 @@ class EcoflowPsBle extends utils.Adapter {
             retryMs: Math.max(2, num(cfg.retryS, 8)) * 1000,
             allSensors: !!cfg.allSensors,
             holdSetpoint: !!cfg.holdSetpoint,
+            watchdogStaleMs: Math.max(0, num(cfg.watchdogStaleS, 60)) * 1000,
         };
+        this._ecoRestartMin = Math.max(0, num(cfg.watchdogRestartMin, 10));
         if (this._ecoOptions.maxWatts < this._ecoOptions.minWatts) {
             this.log.warn('Maximalleistung < Minimalleistung - verwende 0..800 W');
             this._ecoOptions.minWatts = 0;
@@ -136,6 +138,63 @@ class EcoflowPsBle extends utils.Adapter {
             this.devices.set(d.id, dev);
         }
         await this._ecoInitBleAndStart();
+        this._ecoStartWatchdog();
+    }
+
+    /**
+     * Adapter-Watchdog: Sind alle Geraete laenger als watchdogRestartMin Minuten getrennt, ist meist der Bluetooth-Stack
+     * oder der Dongle haengen geblieben. Dann wird die Instanz neu gestartet (hoechstens einmal pro Stunde).
+     */
+    _ecoStartWatchdog() {
+        if (this._ecoWatchdogTimer) {
+            clearInterval(this._ecoWatchdogTimer);
+            this._ecoWatchdogTimer = null;
+        }
+        if (!(this._ecoRestartMin > 0)) {
+            return;
+        }
+        this._ecoAllDownSince = Date.now();
+        this._ecoWatchdogTimer = setInterval(() => void this._ecoWatchdogTick(), this._ecoWatchdogCheckMs || 60000);
+    }
+
+    async _ecoWatchdogTick() {
+        if (this._ecoUnloaded) {
+            return;
+        }
+        const anyLinked = [...this.devices.values()].some(d => d.linked);
+        const now = Date.now();
+        if (anyLinked) {
+            this._ecoAllDownSince = now;
+            return;
+        }
+        if (now - this._ecoAllDownSince < this._ecoRestartMin * 60000) {
+            return;
+        }
+        this._ecoAllDownSince = now; // erst nach weiteren restartMin Minuten erneut pruefen
+        await this.extendObjectAsync('info.watchdogRestart', {
+            type: 'state',
+            common: { name: 'Zeitpunkt des letzten Watchdog-Neustarts', type: 'number', role: 'value.time', read: true, write: false, def: 0 },
+            native: {},
+        });
+        const last = await this.getStateAsync('info.watchdogRestart');
+        const lastTs = last && Number(last.val) > 0 ? Number(last.val) : 0;
+        if (now - lastTs < 60 * 60000) {
+            this.log.warn(`Watchdog: alle Geraete seit ${this._ecoRestartMin} min getrennt, Neustart aber erst nach einer Stunde Abstand zum letzten Watchdog-Neustart`);
+            return;
+        }
+        this.log.error(`Watchdog: alle Geraete seit ${this._ecoRestartMin} min getrennt - Instanz wird neu gestartet`);
+        await this.setStateAsync('info.watchdogRestart', { val: now, ack: true });
+        this._ecoRestart();
+    }
+
+    /** Instanz neu starten lassen (js-controller startet einen Daemon bei einem Exit-Code ungleich 0 neu) */
+    _ecoRestart() {
+        const code = (utils.EXIT_CODES && utils.EXIT_CODES.START_IMMEDIATELY_AFTER_STOP) || 156;
+        if (typeof this.terminate === 'function') {
+            this.terminate(code);
+        } else {
+            process.exit(code);
+        }
     }
 
     /** Bluetooth bereit machen; bei Fehlern regelmaessig neu versuchen (Dongle evtl. spaeter da) */
@@ -411,6 +470,10 @@ class EcoflowPsBle extends utils.Adapter {
         try {
             if (this._ecoInitTimer) {
                 clearTimeout(this._ecoInitTimer);
+            }
+            if (this._ecoWatchdogTimer) {
+                clearInterval(this._ecoWatchdogTimer);
+                this._ecoWatchdogTimer = null;
             }
             await Promise.all([...this.devices.values()].map(d => d.stop()));
             if (this.ble) {

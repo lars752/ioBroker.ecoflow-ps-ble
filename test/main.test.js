@@ -35,6 +35,9 @@ class FakeAdapter extends EventEmitter {
     async setStateChangedAsync(id, st) {
         this._put(id, st);
     }
+    terminate(code) {
+        this.terminated = code;
+    }
     subscribeStates(pattern) {
         (this.subscriptions = this.subscriptions || []).push(pattern);
     }
@@ -351,4 +354,43 @@ test('Admin-Konfiguration: Zugangsdaten sind gespeicherte Felder, Passwort versc
     assert.strictEqual(items.loginPassword.type, 'password');
     assert.strictEqual(items.loginPassword.visible, true);
     assert.deepStrictEqual(pkg.common.encryptedNative, ['loginPassword']);
+});
+
+test('Watchdog: alle Geraete lange getrennt -> Instanz wird neu gestartet, hoechstens einmal pro Stunde', async () => {
+    const ps = new FakePs();
+    withFakePs(ps);
+    BleManager.prototype.init = async () => {
+        throw new Error('Dongle haengt');
+    };
+    FakeAdapter.nextConfig = { ...baseCfg(), watchdogRestartMin: 0.001 }; // 60 ms
+    const a = createAdapter();
+    a._ecoWatchdogCheckMs = 20;
+    await a.onReady();
+    try {
+        await waitFor(() => a.terminated !== undefined);
+        assert.strictEqual(a.terminated, 156);
+        assert.ok(Number(a.val('info.watchdogRestart')) > 0);
+        assert.match(a.logs.join('\n'), /Watchdog: alle Geraete seit .* getrennt - Instanz wird neu gestartet/);
+    } finally {
+        await unload(a);
+    }
+});
+
+test('Watchdog: kein erneuter Neustart, wenn der letzte weniger als eine Stunde her ist', async () => {
+    const ps = new FakePs();
+    withFakePs(ps);
+    BleManager.prototype.init = async () => {
+        throw new Error('Dongle haengt');
+    };
+    FakeAdapter.nextConfig = { ...baseCfg(), watchdogRestartMin: 0.001 };
+    const a = createAdapter();
+    a._ecoWatchdogCheckMs = 20;
+    a._put('info.watchdogRestart', { val: Date.now() - 10 * 60000, ack: true });
+    await a.onReady();
+    try {
+        await waitFor(() => /erst nach einer Stunde Abstand/.test(a.logs.join('\n')));
+        assert.strictEqual(a.terminated, undefined);
+    } finally {
+        await unload(a);
+    }
 });

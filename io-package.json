@@ -82,6 +82,8 @@
     "writeGraceS": 6,
     "telemetryS": 3,
     "retryS": 8,
+    "watchdogStaleS": 60,
+    "watchdogRestartMin": 10,
     "allSensors": false,
     "hciDevice": ""
   },

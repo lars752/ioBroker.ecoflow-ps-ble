@@ -63,6 +63,14 @@ iobroker add ecoflow-ps-ble
    bis erstmals ein Sollwert gesetzt wird.
 5. Instanz speichern und neu starten.
 
+## Watchdog
+
+Der Adapter erkennt typische Hänger und behebt sie selbst, statt auf einen manuellen Neustart zu warten:
+
+* **Sollwert nicht übernommen (nur bei „Werte aktiv halten“ = aus):** Ein gesetzter Sollwert bleibt offen, bis das Gerät ihn meldet. Meldet es ihn nicht, wird er nach der Karenzzeit bis zu 5-mal geschrieben. Hilft das nicht, baut der Adapter die Verbindung einmal neu auf und versucht es noch einmal. Danach gibt er für diesen Wert auf (Fehler im Log), bis ein neuer Sollwert gesetzt wird. Ist der Wert einmal übernommen, wird nichts mehr nachgeführt.
+* **Keine Heartbeats:** Steht die Verbindung, kommen aber seit der eingestellten Zeit (Standard 60 s, 0 = aus) keine Daten, wird die Verbindung neu aufgebaut.
+* **Alle Geräte getrennt:** Sind alle Geräte länger als die eingestellte Zeit (Standard 10 min, 0 = aus) getrennt, hängt meist der Bluetooth-Stack oder der Dongle. Dann startet sich die Instanz neu, höchstens einmal pro Stunde (Zeitpunkt in `info.watchdogRestart`). Sind alle PowerStreams absichtlich aus, kann das einen Neustart pro Stunde auslösen. Dann den Watchdog auf 0 stellen.
+
 Weitere Einstellungen: Soll/Ist-Toleranz (5 W, nur bei „Werte aktiv halten“), Karenz zwischen Nachschreibversuchen (6 s), Messwert-Intervall (3 s), Pause zwischen
 Verbindungsversuchen (8 s) sowie das Anlegen selten genutzter Sensoren (Inverter-Temperatur, Installationsland/-ort).
 
@@ -113,6 +121,8 @@ Die Tests decken Protokoll, Regel-Logik, Geräteanbindung (simulierter PowerStre
 
 ### 1.0.0
 * Der Einspeise-Sollwert wird auf 1 W genau gesetzt (bisher auf 5 W gerundet).
+* Fix: Die schreibbaren Datenpunkte in `inverter_heartbeat` (`permanentWatts`, `invBrightness`, `supplyPriority`) wurden nicht abonniert, Änderungen kamen nie im Adapter an.
+* Watchdog gegen hängende Verbindungen, siehe Abschnitt „Watchdog“.
 * Neue Einstellung „Werte aktiv halten“ (Standard: aus). Aus: `permanentWatts`, `invBrightness` und `supplyPriority` werden nur geschrieben, wenn sie gesetzt werden; kein Soll/Ist-Abgleich, kein erneutes Schreiben nach Reconnect oder Neustart. Ein: bisheriges Verhalten.
 * Steuerwerte liegen wie bei ioBroker.ecoflow-mqtt im `inverter_heartbeat`: `permanentWatts` (früher `control.setWatts`), `invBrightness` (früher `control.brightness`), `supplyPriority` (früher `control.supplyMode`, jetzt Schalter). Die alten Datenpunkte werden beim Start entfernt, `control.reconnect` bleibt.
 * Messwerte liegen unter `inverter_heartbeat` (statt `telemetry`) und tragen die Namen des Adapters ioBroker.ecoflow-mqtt. Das alte Channel `telemetry` wird beim Start entfernt.

@@ -271,3 +271,30 @@ test('Regelung ohne hold: nur gesetzte Sollwerte schreiben, nichts nachfuehren',
     assert.strictEqual(c.decide(null), null);
     assert.strictEqual(c.decide(0), 150);
 });
+
+test('Regelung ohne hold: nicht bestaetigter Sollwert wird nach der Karenz wiederholt, hoechstens maxAttempts mal', () => {
+    let t = 0;
+    const c = new SetpointController({ minWatts: 0, maxWatts: 800, startWatts: 0, toleranceW: 5, graceMs: 1000, hold: false, maxAttempts: 3, now: () => t });
+    c.setTarget(200);
+    assert.strictEqual(c.decide(0), 200);
+    c.markWritten(200);
+    assert.strictEqual(c.decide(0), null, 'Karenz: auf Bestaetigung warten');
+    t += 1000;
+    assert.strictEqual(c.decide(0), 200, 'nicht bestaetigt -> Wiederholung');
+    c.markWritten(200);
+    t += 1000;
+    assert.strictEqual(c.decide(0), 200);
+    c.markWritten(200);
+    t += 1000;
+    assert.strictEqual(c.decide(0), null, 'nach maxAttempts keine weiteren Versuche');
+    assert.strictEqual(c.gaveUp, true);
+    c.retry();
+    assert.strictEqual(c.gaveUp, false);
+    assert.strictEqual(c.decide(0), 200, 'nach retry() wieder offen');
+    c.markWritten(200);
+    // Bestaetigung beendet alles
+    assert.strictEqual(c.decide(200), null);
+    assert.strictEqual(c.pending, false);
+    t += 5000;
+    assert.strictEqual(c.decide(0), null, 'danach wird nichts mehr nachgefuehrt');
+});

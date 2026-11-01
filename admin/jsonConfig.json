@@ -222,6 +222,24 @@
       "xs": 6,
       "md": 3
     },
+    "watchdogStaleS": {
+      "type": "number",
+      "label": "Watchdog: Verbindung neu aufbauen, wenn so lange kein Heartbeat kommt (s, 0 = aus)",
+      "min": 0,
+      "max": 3600,
+      "newLine": true,
+      "xs": 12,
+      "md": 6
+    },
+    "watchdogRestartMin": {
+      "type": "number",
+      "label": "Watchdog: Instanz neu starten, wenn alle Geräte so lange getrennt sind (min, 0 = aus)",
+      "min": 0,
+      "max": 1440,
+      "xs": 12,
+      "md": 6,
+      "help": "Höchstens ein Neustart pro Stunde"
+    },
     "allSensors": {
       "type": "checkbox",
       "label": "Auch selten genutzte Werte anlegen (Inverter-Temperatur, Installationsland/-ort, nicht zugeordnete Heartbeat-Felder)",

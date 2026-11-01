@@ -85,7 +85,7 @@ class FakePs {
                 }
             }
             this.writes.push({ cmdId: ci, value: v });
-            if (ci === 0x81) {
+            if (ci === 0x81 && !this.ignoreSetLoad) {
                 this.perm = v / 10;
             }
             if (ci === 0x87) {

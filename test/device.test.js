@@ -168,7 +168,7 @@ test('stop() beendet sauber und setzt den Link auf false', async () => {
 test('Ohne hold: gesetzte Werte werden geschrieben, aber nie nachgefuehrt oder nach Reconnect erneut gesetzt', async () => {
     const ps = new FakePs();
     ps.startHeartbeats();
-    const { dev, updates } = makeDevice(ps, { holdSetpoint: false, startWatts: 100, controlCheckMs: 40, writeGraceMs: 10 });
+    const { dev, updates } = makeDevice(ps, { holdSetpoint: false, startWatts: 100, controlCheckMs: 40, writeGraceMs: 250 });
     dev.start();
     try {
         await waitFor(() => updates['info.link'] === true);
@@ -177,7 +177,9 @@ test('Ohne hold: gesetzte Werte werden geschrieben, aber nie nachgefuehrt oder n
         dev.setTarget(200);
         dev.setBrightness(40);
         await waitFor(() => ps.writes.length >= 2);
-        // Geraet weicht ab (z. B. App-Aenderung): kein Nachschreiben
+        await waitFor(() => ps.perm === 200);
+        await sleep(150); // ein Heartbeat bestaetigt den Wert -> Sollwert gilt als uebernommen
+        // Geraet weicht danach ab (z. B. App-Aenderung): kein Nachschreiben
         ps.perm = 50;
         await sleep(400);
         assert.strictEqual(ps.writes.length, 2);
@@ -192,6 +194,75 @@ test('Ohne hold: gesetzte Werte werden geschrieben, aber nie nachgefuehrt oder n
         dev.setTarget(300);
         await waitFor(() => ps.writes.length > before);
         assert.strictEqual(ps.writes[ps.writes.length - 1].value, 3000);
+    } finally {
+        await dev.stop();
+        ps.stop();
+    }
+});
+
+test('Ohne hold: nicht uebernommener Sollwert wird wiederholt, dann per Watchdog neu verbunden, danach aufgegeben', async () => {
+    const ps = new FakePs();
+    ps.startHeartbeats();
+    ps.ignoreSetLoad = true;
+    const { dev, updates, logs } = makeDevice(ps, { holdSetpoint: false, startWatts: 0, controlCheckMs: 20, writeGraceMs: 20, maxWriteAttempts: 3, watchdogCheckMs: 30, watchdogStaleMs: 0 });
+    dev.start();
+    try {
+        await waitFor(() => updates['info.link'] === true);
+        dev.setTarget(200);
+        await waitFor(() => ps.writes.filter(w => w.cmdId === 0x81).length >= 3);
+        // nach den Versuchen verbindet der Watchdog neu und versucht es noch einmal
+        await waitFor(() => logs.some(l => /Watchdog: Sollwert 200 W wurde 3x geschrieben/.test(l)));
+        await waitFor(() => ps.writes.filter(w => w.cmdId === 0x81).length >= 6);
+        await waitFor(() => logs.some(l => /keine weiteren Versuche/.test(l)));
+        const n = ps.writes.filter(w => w.cmdId === 0x81).length;
+        await sleep(400);
+        assert.strictEqual(ps.writes.filter(w => w.cmdId === 0x81).length, n, 'danach keine Dauerschleife');
+        // neuer Sollwert wird wieder normal geschrieben und uebernommen
+        ps.ignoreSetLoad = false;
+        dev.setTarget(250);
+        await waitFor(() => ps.perm === 250);
+    } finally {
+        await dev.stop();
+        ps.stop();
+    }
+});
+
+test('Ohne hold: ein verlorener erster Schreibzugriff wird wiederholt', async () => {
+    const ps = new FakePs();
+    ps.startHeartbeats();
+    ps.ignoreSetLoad = true;
+    const { dev, updates } = makeDevice(ps, { holdSetpoint: false, startWatts: 0, controlCheckMs: 20, writeGraceMs: 20, watchdogStaleMs: 0 });
+    dev.start();
+    try {
+        await waitFor(() => updates['info.link'] === true);
+        dev.setTarget(120);
+        await waitFor(() => ps.writes.length >= 1);
+        ps.ignoreSetLoad = false; // ab jetzt kommt der Wert an
+        await waitFor(() => ps.perm === 120);
+        await sleep(150);
+        const n = ps.writes.length;
+        await sleep(300);
+        assert.strictEqual(ps.writes.length, n, 'nach der Bestaetigung wird nichts mehr geschrieben');
+    } finally {
+        await dev.stop();
+        ps.stop();
+    }
+});
+
+test('Watchdog: bleiben die Heartbeats aus, wird die Verbindung neu aufgebaut', async () => {
+    const ps = new FakePs();
+    ps.startHeartbeats();
+    const { dev, updates, logs } = makeDevice(ps, { watchdogCheckMs: 30, watchdogStaleMs: 200 });
+    dev.start();
+    try {
+        await waitFor(() => updates['info.link'] === true);
+        await waitFor(() => updates['inverter_heartbeat.batSoc'] !== undefined);
+        ps.stop(); // Verbindung steht, aber es kommen keine Daten mehr
+        await waitFor(() => logs.some(l => /Watchdog: seit \d+ s kein Heartbeat/.test(l)));
+        await waitFor(() => updates['info.link'] === false);
+        ps.startHeartbeats();
+        await waitFor(() => updates['info.link'] === true);
+        assert.ok(dev.reconnects >= 2);
     } finally {
         await dev.stop();
         ps.stop();
