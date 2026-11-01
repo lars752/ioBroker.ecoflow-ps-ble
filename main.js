@@ -70,7 +70,8 @@ class EcoflowPsBle extends utils.Adapter {
         if (hciDevice !== null) {
             this.log.info(`Verwende Bluetooth-Adapter hci${hciDevice}`);
         }
-        this.ble = new BleManager({ hciDevice });
+        // Standard: ein (auch fehlender) Wert in bestehenden Konfigurationen gilt als "ein"
+        this.ble = new BleManager({ hciDevice, resetController: cfg.resetController !== false, log: this.log });
         for (const d of this._ecoDefs) {
             await this._ecoCreateObjects(d, this._ecoOptions);
         }

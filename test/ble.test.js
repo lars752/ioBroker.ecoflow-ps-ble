@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert');
-const { checkLinuxBluetooth, BleManager } = require('../lib/ble');
+const { checkLinuxBluetooth, BleManager, resetController } = require('../lib/ble');
 
 const fsWith = ({ adapters = ['hci0'], capEff = '0000000000002000', noSys = false } = {}) => ({
     readdirSync: () => {
@@ -90,4 +90,96 @@ test('BleManager: gewaehlter Adapter wird vor dem Laden von noble als NOBLE_HCI_
             process.env.NOBLE_HCI_DEVICE_ID = before;
         }
     }
+});
+
+// ---------------------------------------------------------------- Controller-Reset
+const fakeExec = handler => {
+    const calls = [];
+    const fn = (cmd, args, _opts, cb) => {
+        calls.push([cmd, ...args].join(' '));
+        const r = handler(cmd, args);
+        if (r instanceof Error) {
+            cb(r, '', r.stderr || '');
+        } else {
+            cb(null, '', '');
+        }
+    };
+    fn.calls = calls;
+    return fn;
+};
+
+test('resetController: hciconfig reset mit gewaehltem Adapter, danach up', async () => {
+    const execFile = fakeExec(() => null);
+    const r = await resetController({ platform: 'linux', execFile, hciDevice: 1 });
+    assert.deepStrictEqual(r, { ok: true, method: 'hciconfig reset' });
+    assert.deepStrictEqual(execFile.calls, ['hciconfig hci1 reset', 'hciconfig hci1 up']);
+});
+
+test('resetController: Standard ist hci0', async () => {
+    const execFile = fakeExec(() => null);
+    await resetController({ platform: 'linux', execFile, hciDevice: null });
+    assert.strictEqual(execFile.calls[0], 'hciconfig hci0 reset');
+});
+
+test('resetController: ohne Rechte -> sudo -n, dann btmgmt', async () => {
+    const denied = Object.assign(new Error('x'), { stderr: 'Reset failed: Operation not permitted' });
+    let execFile = fakeExec(cmd => (cmd === 'hciconfig' ? denied : null));
+    let r = await resetController({ platform: 'linux', execFile, hciDevice: 0 });
+    assert.strictEqual(r.method, 'sudo hciconfig reset');
+    assert.strictEqual(execFile.calls[1], 'sudo -n hciconfig hci0 reset');
+
+    const missing = Object.assign(new Error('spawn ENOENT'), { code: 'ENOENT' });
+    execFile = fakeExec(cmd => (cmd === 'hciconfig' || cmd === 'sudo' ? missing : null));
+    r = await resetController({ platform: 'linux', execFile, hciDevice: 0 });
+    assert.strictEqual(r.method, 'btmgmt power off/on');
+    assert.deepStrictEqual(execFile.calls.slice(-2), ['btmgmt --index 0 power off', 'btmgmt --index 0 power on']);
+});
+
+test('resetController: alles scheitert -> ok=false mit Fehlertext; nicht-Linux wird uebersprungen', async () => {
+    const execFile = fakeExec(() => new Error('kaputt'));
+    const r = await resetController({ platform: 'linux', execFile });
+    assert.strictEqual(r.ok, false);
+    assert.match(r.error, /hciconfig reset: kaputt/);
+    assert.deepStrictEqual(await resetController({ platform: 'win32', execFile }), { ok: false, skipped: 'nur unter Linux' });
+});
+
+test('BleManager.init: Reset laeuft einmal und vor dem Laden von noble; Fehler ist nicht fatal', async () => {
+    const order = [];
+    const logs = [];
+    const mk = (resetFn, extra = {}) =>
+        new BleManager({
+            hciDevice: 0,
+            preflight: () => {
+                order.push('preflight');
+                return null;
+            },
+            resetController: true,
+            waitAfterResetMs: 0,
+            resetFn,
+            log: { info: m => logs.push(`info ${m}`), warn: m => logs.push(`warn ${m}`), debug: () => undefined },
+            ...extra,
+        });
+    let calls = 0;
+    const m = mk(async () => {
+        calls++;
+        order.push('reset');
+        return { ok: true, method: 'hciconfig reset' };
+    });
+    // noble-Pakete sind in der Testumgebung nicht installiert -> init scheitert NACH dem Reset
+    await assert.rejects(m.init(), /BLE-Bibliothek konnte nicht geladen werden/);
+    await assert.rejects(m.init(), /BLE-Bibliothek/);
+    assert.strictEqual(calls, 1, 'nur ein Reset pro Prozess');
+    assert.deepStrictEqual(order.slice(0, 2), ['preflight', 'reset']);
+    assert.ok(logs.some(l => /zurueckgesetzt \(hciconfig reset\)/.test(l)));
+
+    const m2 = mk(async () => ({ ok: false, error: 'hciconfig reset: nicht erlaubt' }));
+    await assert.rejects(m2.init(), /BLE-Bibliothek/);
+    assert.ok(logs.some(l => /^warn .*nicht zurueckgesetzt werden/.test(l)));
+});
+
+test('BleManager.init: ohne Option kein Reset', async () => {
+    let calls = 0;
+    const m = new BleManager({ hciDevice: 0, preflight: () => null, resetController: false, resetFn: async () => ++calls });
+    await assert.rejects(m.init(), /BLE-Bibliothek/);
+    assert.strictEqual(calls, 0);
 });

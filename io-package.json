@@ -86,7 +86,8 @@
     "watchdogStaleS": 60,
     "watchdogRestartMin": 10,
     "allSensors": false,
-    "hciDevice": ""
+    "hciDevice": "",
+    "resetController": true
   },
   "objects": [],
   "instanceObjects": [
