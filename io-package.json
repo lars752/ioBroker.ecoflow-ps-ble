@@ -34,6 +34,7 @@
     "icon": "ecoflow-ps-ble.svg",
     "enabled": true,
     "mode": "daemon",
+    "stopTimeout": 15000,
     "compact": false,
     "type": "energy",
     "connectionType": "local",

@@ -268,3 +268,35 @@ test('Watchdog: bleiben die Heartbeats aus, wird die Verbindung neu aufgebaut', 
         ps.stop();
     }
 });
+
+test('haengendes subscribeAsync + Funkabriss blockiert die Schleife nicht (Regression)', async () => {
+    const ps = new FakePs();
+    ps.startHeartbeats();
+    const origMakeBle = ps.makeBle.bind(ps);
+    let first = true;
+    ps.makeBle = () => {
+        const ble = origMakeBle();
+        const origConnect = ble.connect;
+        ble.connect = async () => {
+            const p = await origConnect();
+            if (first) {
+                first = false;
+                // erster Versuch: subscribe loest nie auf, danach reisst die Verbindung ab
+                ps.notifyChar.subscribeAsync = () => new Promise(() => undefined);
+                setTimeout(() => ps.dropLink(), 100);
+            }
+            return p;
+        };
+        return ble;
+    };
+    const { dev, updates } = makeDevice(ps);
+    dev.start();
+    try {
+        // zweiter Versuch muss ohne manuellen Eingriff gelingen
+        await waitFor(() => updates['info.link'] === true, 4000);
+        assert.strictEqual(ps.connections >= 2, true);
+    } finally {
+        await dev.stop();
+        ps.stop();
+    }
+});
