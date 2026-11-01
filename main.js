@@ -55,6 +55,7 @@ class EcoflowPsBle extends utils.Adapter {
             telemetryMs: Math.max(1, num(cfg.telemetryS, 3)) * 1000,
             retryMs: Math.max(2, num(cfg.retryS, 8)) * 1000,
             allSensors: !!cfg.allSensors,
+            holdSetpoint: !!cfg.holdSetpoint,
         };
         if (this._ecoOptions.maxWatts < this._ecoOptions.minWatts) {
             this.log.warn('Maximalleistung < Minimalleistung - verwende 0..800 W');
@@ -235,7 +236,7 @@ class EcoflowPsBle extends utils.Adapter {
                 // Schreibbare Werte liegen wie bei ioBroker.ecoflow-mqtt direkt im inverter_heartbeat
                 common.write = true;
                 if (s.key === 'permanentWatts') {
-                    Object.assign(common, { min: options.minWatts, max: options.maxWatts, step: 5 });
+                    Object.assign(common, { min: options.minWatts, max: options.maxWatts, step: 1 });
                 } else if (s.key === 'invBrightness') {
                     Object.assign(common, { min: 0, max: 100, step: 0.1 });
                 }

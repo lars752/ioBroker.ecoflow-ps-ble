@@ -113,11 +113,11 @@ test('Start: Objekte, Verbindung, Telemetrie, Sollwert ueber State, Ack, info.co
         assert.strictEqual(a.val('PS1.info.link'), true);
         assert.strictEqual(a.ack('PS1.inverter_heartbeat.batSoc'), true);
 
-        // Sollwert setzen (ack=false vom Nutzer) -> wird gerundet, bestaetigt und ans Geraet geschrieben
+        // Sollwert setzen (ack=false vom Nutzer) -> wird begrenzt, bestaetigt und ans Geraet geschrieben
         await a.onStateChange(`${a.namespace}.PS1.inverter_heartbeat.permanentWatts`, { val: 203, ack: false });
-        await waitFor(() => a.val('PS1.inverter_heartbeat.permanentWatts') === 205);
+        await waitFor(() => a.val('PS1.inverter_heartbeat.permanentWatts') === 203);
         assert.strictEqual(a.ack('PS1.inverter_heartbeat.permanentWatts'), true);
-        await waitFor(() => ps.writes.some(w => w.cmdId === 0x81 && w.value === 2050));
+        await waitFor(() => ps.writes.some(w => w.cmdId === 0x81 && w.value === 2030));
 
         // Ack-Aenderungen werden ignoriert, fremde States ebenfalls
         const n = ps.writes.length;

@@ -47,12 +47,12 @@ test('Verbindung, Auth, Telemetrie und write-on-change', async () => {
         await sleep(300);
         assert.strictEqual(ps.writes.length, 0, 'beim Start darf nichts geschrieben werden');
 
-        // neuer Sollwert: 203 -> 205 W, genau EIN Write
-        assert.strictEqual(dev.setTarget(203), 205);
+        // neuer Sollwert: 203 W (auf 1 W genau), genau EIN Write
+        assert.strictEqual(dev.setTarget(203), 203);
         await waitFor(() => ps.writes.length >= 1);
         await sleep(400);
-        assert.deepStrictEqual(ps.writes, [{ cmdId: 0x81, value: 2050 }]);
-        await waitFor(() => updates['inverter_heartbeat.permanentWatts'] === 205);
+        assert.deepStrictEqual(ps.writes, [{ cmdId: 0x81, value: 2030 }]);
+        await waitFor(() => updates['inverter_heartbeat.permanentWatts'] === 203);
 
         // Helligkeit + Supply-Mode
         dev.setBrightness(50);
@@ -163,4 +163,37 @@ test('stop() beendet sauber und setzt den Link auf false', async () => {
     ps.stop();
     assert.strictEqual(updates['info.link'], false);
     assert.strictEqual(updates['info.status'], 'gestoppt');
+});
+
+test('Ohne hold: gesetzte Werte werden geschrieben, aber nie nachgefuehrt oder nach Reconnect erneut gesetzt', async () => {
+    const ps = new FakePs();
+    ps.startHeartbeats();
+    const { dev, updates } = makeDevice(ps, { holdSetpoint: false, startWatts: 100, controlCheckMs: 40, writeGraceMs: 10 });
+    dev.start();
+    try {
+        await waitFor(() => updates['info.link'] === true);
+        await sleep(300);
+        assert.strictEqual(ps.writes.length, 0, 'Startwert darf nichts schreiben');
+        dev.setTarget(200);
+        dev.setBrightness(40);
+        await waitFor(() => ps.writes.length >= 2);
+        // Geraet weicht ab (z. B. App-Aenderung): kein Nachschreiben
+        ps.perm = 50;
+        await sleep(400);
+        assert.strictEqual(ps.writes.length, 2);
+        // Reconnect: Helligkeit/Sollwert werden nicht erneut gesetzt
+        const before = ps.writes.length;
+        ps.dropLink();
+        await waitFor(() => updates['info.link'] === false);
+        await waitFor(() => updates['info.link'] === true);
+        await sleep(400);
+        assert.strictEqual(ps.writes.length, before);
+        // Neuer Wert wird weiterhin sofort geschrieben
+        dev.setTarget(300);
+        await waitFor(() => ps.writes.length > before);
+        assert.strictEqual(ps.writes[ps.writes.length - 1].value, 3000);
+    } finally {
+        await dev.stop();
+        ps.stop();
+    }
 });

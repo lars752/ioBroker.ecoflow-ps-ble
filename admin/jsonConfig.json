@@ -173,7 +173,14 @@
       "max": 2000,
       "xs": 6,
       "md": 3,
-      "help": "Sollwert nach Adapterstart, bis ein neuer gesetzt wird. -1 = beim Start nichts schreiben"
+      "help": "Sollwert nach Adapterstart, bis ein neuer gesetzt wird. -1 = beim Start nichts schreiben. Wirkt nur, wenn „Werte aktiv halten“ eingeschaltet ist"
+    },
+    "holdSetpoint": {
+      "type": "checkbox",
+      "label": "Werte aktiv halten (Soll/Ist-Abgleich, erneutes Schreiben nach Reconnect)",
+      "newLine": true,
+      "xs": 12,
+      "help": "Aus: permanentWatts, invBrightness und supplyPriority werden nur geschrieben, wenn sie gesetzt werden (z. B. von einem anderen Adapter, der den Wert selbst führt). Der Adapter überschreibt dann nichts."
     },
     "expertHeader": {
       "type": "header",
@@ -189,7 +196,7 @@
       "newLine": true,
       "xs": 6,
       "md": 3,
-      "help": "Zugleich Schreib-Totband: erst ab dieser Abweichung wird nachgeschrieben"
+      "help": "Nur bei „Werte aktiv halten“: Schreib-Totband, erst ab dieser Abweichung wird nachgeschrieben"
     },
     "writeGraceS": {
       "type": "number",

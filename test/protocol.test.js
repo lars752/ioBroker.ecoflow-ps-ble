@@ -4,7 +4,7 @@ const assert = require('node:assert');
 const crypto = require('node:crypto');
 const P = require('../lib/protocol');
 const { SENSORS, scaleValue } = require('../lib/sensors');
-const { SetpointController, roundTo5 } = require('../lib/controller');
+const { SetpointController } = require('../lib/controller');
 
 const SN = 'HW51ZOH4PS000000';
 const UID = '0000000000000000000';
@@ -202,16 +202,17 @@ function ctl(extra = {}) {
     return { c, tick: ms => (t += ms) };
 }
 
-test('roundTo5: kaufmaennisch auf 5 W', () => {
-    assert.deepStrictEqual([0, 1, 2, 3, 7, 8, 12, 13, 798].map(roundTo5), [0, 0, 0, 5, 5, 10, 10, 15, 800]);
+test('Controller: Sollwert wird kaufmaennisch auf ganze Watt gerundet', () => {
+    const { c } = ctl();
+    assert.deepStrictEqual([0, 0.4, 0.5, 1, 2, 3, 7, 8, 12, 13, 798, 799.6].map(w => c.setTarget(w)), [0, 0, 1, 1, 2, 3, 7, 8, 12, 13, 798, 800]);
 });
 
 test('Controller: Sollwert begrenzen und runden', () => {
     const { c } = ctl();
     assert.strictEqual(c.setTarget(-50), 0);
     assert.strictEqual(c.setTarget(1000), 800);
-    assert.strictEqual(c.setTarget(203), 205);
-    assert.strictEqual(c.setTarget(202), 200);
+    assert.strictEqual(c.setTarget(203), 203);
+    assert.strictEqual(c.setTarget(202.4), 202);
 });
 
 test('Controller: Ruhezustand schreibt nichts (auch beim Start nicht)', () => {
@@ -245,4 +246,28 @@ test('Controller: ohne Ist-Wert oder ohne Startwert nichts tun', () => {
     assert.strictEqual(n.decide(300), null);
     n.setTarget(100);
     assert.strictEqual(n.decide(300), 100);
+});
+
+test('Regelung ohne hold: nur gesetzte Sollwerte schreiben, nichts nachfuehren', () => {
+    let t = 0;
+    const c = new SetpointController({ minWatts: 0, maxWatts: 800, startWatts: 100, toleranceW: 5, graceMs: 6000, hold: false, now: () => t });
+    // Startwert + Abweichung: kein Schreiben, der andere Adapter fuehrt den Wert
+    assert.strictEqual(c.decide(0), null);
+    // gesetzter Sollwert wird geschrieben, auch innerhalb der Karenzzeit
+    c.setTarget(200);
+    assert.strictEqual(c.decide(0), 200);
+    c.markWritten(200);
+    assert.strictEqual(c.decide(0), null, 'kein Re-Assert, wenn das Geraet abweicht');
+    t += 100;
+    c.setTarget(300);
+    assert.strictEqual(c.decide(200), 300);
+    c.markWritten(300);
+    // Geraet hat den Wert schon -> nicht schreiben
+    c.setTarget(300);
+    assert.strictEqual(c.decide(300), null);
+    assert.strictEqual(c.decide(0), null, 'danach nichts mehr nachfuehren');
+    // Ist unbekannt -> warten
+    c.setTarget(150);
+    assert.strictEqual(c.decide(null), null);
+    assert.strictEqual(c.decide(0), 150);
 });

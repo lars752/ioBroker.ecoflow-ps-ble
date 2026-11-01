@@ -77,6 +77,7 @@
     "minWatts": 0,
     "maxWatts": 800,
     "startWatts": 0,
+    "holdSetpoint": false,
     "toleranceW": 5,
     "writeGraceS": 6,
     "telemetryS": 3,
